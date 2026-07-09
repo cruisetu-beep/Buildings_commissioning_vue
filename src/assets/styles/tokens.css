@@ -1,0 +1,120 @@
+  :root {
+    /* ─── 背景层次 ─── */
+    --bg-0: #f3f6fb;
+    --bg-1: #ffffff;
+    --bg-2: #eef3fb;
+    --bg-3: #e3ebf7;
+
+    /* ─── 线条 ─── */
+    --line: rgba(60,110,200,0.14);
+    --line-strong: rgba(60,110,200,0.30);
+    --line-soft: rgba(60,110,200,0.08);
+
+    /* ─── 文字层次 ─── */
+    --text-0: #0f1d3d;
+    --text-1: #38496b;
+    --text-2: #6a7da3;
+    --text-3: #97a4c0;
+    --text-disabled: #c5cee0;
+
+    /* ─── 品牌色 ─── */
+    --brand: #1f6feb;
+    --brand-2: #2f7fff;
+    --brand-glow: #4dc9ff;
+    --accent: #7a5cff;
+
+    /* ─── 基础状态色 ─── */
+    --ok: #18a572;
+    --warn: #d97706;
+    --danger: #e54e6e;
+    --info: #0ea5e9;
+
+    /* ─── 调适模块专属:优先级色 ─── */
+    --prio-highest: #b91c1c;    /* 最高:深红,仅 BH-S1 */
+    --prio-high:    #dc2626;    /* 高:红 */
+    --prio-mid:     #d97706;    /* 中:橙 */
+    --prio-low:     #64748b;    /* 低:灰蓝 */
+    --prio-group:   #7a5cff;    /* 见分组:紫(D05) */
+
+    /* ─── 调适模块专属:规则系列色 ─── */
+    --series-c: #2f7fff;        /* C系:通用蓝 */
+    --series-d: #7a5cff;        /* D系:差异化紫 */
+    --series-s: #94a3b8;        /* S系:未启用灰 */
+
+    /* ─── 调适模块专属:设备类别色 ─── */
+    --cat-water:   #0ea5e9;     /* 冷水系统:天青 */
+    --cat-ahu:     #10b981;     /* AHU:翠绿 */
+    --cat-tower:   #06b6d4;     /* 冷却塔:青 */
+    --cat-heat:    #f97316;     /* 采暖:橘红 */
+    --cat-general: #8b5cf6;     /* 通用:紫 */
+
+    /* ─── 调适模块专属:判定分类色(未来 4.1 用) ─── */
+    --status-target: #dc2626;   /* 目标调适 */
+    --status-check:  #0ea5e9;   /* 待核查 */
+    --status-normal: #18a572;   /* 正常 */
+    --status-nonode: #94a3b8;   /* 无节点 */
+    --status-nodata: #cbd5e1;   /* 无数据 */
+
+    /* ─── 调适模块专属:命中数徽章分档(未来 4.1 用) ─── */
+    --hit-7plus: #b91c1c;
+    --hit-5-6:   #ea580c;
+    --hit-4:     #ca8a04;
+    --hit-below: #64748b;
+
+    /* ─── 尺寸/圆角/阴影 ─── */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 999px;
+    --shadow-sm: 0 1px 2px rgba(60,110,200,0.04);
+    --shadow-md: 0 1px 2px rgba(60,110,200,0.04), 0 4px 16px rgba(60,110,200,0.04);
+    --shadow-glow: 0 1px 2px rgba(60,110,200,0.06), 0 8px 32px rgba(60,110,200,0.08);
+
+    /* ─── 网格背景 ─── */
+    --grid: rgba(60,110,200,0.05);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg-0);
+    color: var(--text-0);
+    font-family: "Noto Sans SC","PingFang SC",-apple-system,sans-serif;
+    font-size: 14px; overflow-x: hidden; min-height: 100vh;
+  }
+  body::before {
+    content:""; position:fixed; inset:0;
+    background:
+      radial-gradient(ellipse 1200px 600px at 20% 0%,rgba(47,127,255,.10),transparent 60%),
+      radial-gradient(ellipse 800px 500px at 90% 30%,rgba(122,92,255,.06),transparent 60%),
+      linear-gradient(180deg,#f3f6fb 0%,#e8eef8 100%);
+    z-index:-2;
+  }
+  body::after {
+    content:""; position:fixed; inset:0;
+    background-image:
+      linear-gradient(var(--grid) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:48px 48px; z-index:-1;
+    mask-image:radial-gradient(ellipse 80% 60% at 50% 40%,black,transparent 80%);
+  }
+  .mono { font-family:"JetBrains Mono",monospace; }
+  .display { font-family:"Orbitron","Noto Sans SC",sans-serif; letter-spacing:.02em; }
+  #app { min-height:100vh; } /* 原型中为 #root(React 挂载点),Vue 挂载点为 #app,仅改动选择器名,样式值未改动 */
+
+  /* ─── 滚动条 ─── */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(60,110,200,0.18); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(60,110,200,0.32); }
+
+  /* ─── 通用动画 ─── */
+  @keyframes float-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.5; }
+  }
+  .float-in { animation: float-in 0.4s ease both; }

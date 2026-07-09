@@ -1,0 +1,27 @@
+import { createRouter, createWebHistory } from "vue-router";
+import { MODULES } from "../constants/modules.js";
+
+const routes = [
+  { path: "/", redirect: "/rules" },
+  { path: "/rules", name: "rules-list", component: () => import("../views/rules/RulesListPage.vue") },
+  { path: "/rules/:id", name: "rules-detail", component: () => import("../views/rules/RuleDetailPage.vue") },
+
+  // 其余模块:本批次仅占位,后续批次逐个替换
+  ...MODULES.filter((m) => m.key !== "rules").map((m) => ({
+    path: `/${m.key}`,
+    name: m.key,
+    component: () => import("../views/PlaceholderPage.vue"),
+  })),
+
+  { path: "/:pathMatch(.*)*", redirect: "/rules" },
+];
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+  scrollBehavior() {
+    return { top: 0 };
+  },
+});
+
+export default router;
