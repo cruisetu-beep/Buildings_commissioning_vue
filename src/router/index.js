@@ -7,8 +7,10 @@ const routes = [
   { path: "/rules/new", name: "rules-create", component: () => import("../views/rules/RuleCreatePage.vue") },
   { path: "/rules/:id", name: "rules-detail", component: () => import("../views/rules/RuleDetailPage.vue") },
 
+  { path: "/params", name: "params", component: () => import("../views/params/ThresholdMatrixPage.vue") },
+
   // 其余模块:本批次仅占位,后续批次逐个替换
-  ...MODULES.filter((m) => m.key !== "rules").map((m) => ({
+  ...MODULES.filter((m) => m.key !== "rules" && m.key !== "params").map((m) => ({
     path: `/${m.key}`,
     name: m.key,
     component: () => import("../views/PlaceholderPage.vue"),
