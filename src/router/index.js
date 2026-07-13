@@ -4,6 +4,7 @@ import { MODULES } from "../constants/modules.js";
 const routes = [
   { path: "/", redirect: "/rules" },
   { path: "/rules", name: "rules-list", component: () => import("../views/rules/RulesListPage.vue") },
+  { path: "/rules/new", name: "rules-create", component: () => import("../views/rules/RuleCreatePage.vue") },
   { path: "/rules/:id", name: "rules-detail", component: () => import("../views/rules/RuleDetailPage.vue") },
 
   // 其余模块:本批次仅占位,后续批次逐个替换

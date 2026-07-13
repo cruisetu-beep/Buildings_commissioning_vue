@@ -38,7 +38,6 @@ const filters = defineModel({ required: true }); // { q, priority, enabled }
           <option value="高">高</option>
           <option value="中">中</option>
           <option value="低">低</option>
-          <option value="分组">分组</option>
         </select>
       </div>
 

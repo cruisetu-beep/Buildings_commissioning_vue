@@ -14,7 +14,7 @@ import FormField from "../../components/common/FormField.vue";
 import ThresholdPreview from "../../components/rules/ThresholdPreview.vue";
 import ManualCollapse from "../../components/rules/ManualCollapse.vue";
 import SavedBanner from "../../components/rules/SavedBanner.vue";
-import { fetchRules, updateRule, getManual, THRESHOLD_MAP } from "../../data/rules-api.js";
+import { fetchRuleDetail, updateRule, getManual, THRESHOLD_MAP } from "../../data/rules-api.js";
 
 import "../../assets/styles/rule-detail.css";
 
@@ -25,21 +25,20 @@ const rule = ref(null);
 const loading = ref(true);
 
 onMounted(async () => {
-  const all = await fetchRules();
-  rule.value = all.find((r) => r.cxRuleId === route.params.id) || null;
+  rule.value = await fetchRuleDetail(route.params.id);
   loading.value = false;
   if (rule.value) initForm();
 });
 
 const isSeriesLocked = computed(() => rule.value && rule.value.series === "S");
 
-let initial = {};
+const initial = ref({});
 const form = reactive({});
 const saved = ref(false);
 const savedFields = ref([]);
 
 function initForm() {
-  initial = {
+  initial.value = {
     name: rule.value.name,
     priority: rule.value.priority,
     minValid: rule.value.minValid,
@@ -50,24 +49,34 @@ function initForm() {
       ? `${THRESHOLD_MAP[rule.value.ruleCode].unit}(按 12 业态差异化)`
       : rule.value.brief,
   };
-  Object.assign(form, initial);
+  Object.assign(form, initial.value);
 }
 
-const isFieldChanged = (key) => form[key] !== initial[key];
-const changedKeys = computed(() => Object.keys(initial).filter((k) => form[k] !== initial[k]));
+const isFieldChanged = (key) => form[key] !== initial.value[key];
+const changedKeys = computed(() => Object.keys(initial.value).filter((k) => form[k] !== initial.value[k]));
 const isDirty = computed(() => changedKeys.value.length > 0);
 
 const onSave = async () => {
   if (!isDirty.value || isSeriesLocked.value) return;
   savedFields.value = changedKeys.value;
   saved.value = true;
-  await updateRule(rule.value.cxRuleId, { ...form });
-  initial = { ...form };
+  
+  // 1. 调用后端接口更新，将现有规则的完整属性和表单修改合并发送，避免缺少必填字段导致 400 错误
+  // 修正：将 thresholdDesc 映射回 brief 发给后端
+  const payload = { ...rule.value, ...form, brief: form.thresholdDesc };
+  await updateRule(rule.value.cxRuleId, payload);
+  
+  // 2. 替换 rule 的整个引用，迫使 Vue 深度更新顶部及所有依赖 rule 属性的 UI
+  rule.value = { ...rule.value, ...form, brief: form.thresholdDesc };
+  
+  // 3. 重新调用初始加载表单方法，重置 initial 基线并对齐 form
+  initForm();
+  
   setTimeout(() => (saved.value = false), 4000);
 };
 
 const onCancel = () => {
-  Object.assign(form, initial);
+  Object.assign(form, initial.value);
 };
 
 const onBack = () => router.push("/rules");
@@ -95,7 +104,14 @@ const onJumpToMatrix = () => {
           <CategoryChip :category="rule.category" />
           <PriorityChip :priority="rule.priority" />
           <span
-            v-if="!rule.isEnabled"
+            v-if="rule.isEnabled"
+            class="chip"
+            style="color: #10b981; background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.25)"
+          >
+            已启用
+          </span>
+          <span
+            v-else
             class="chip"
             style="color: var(--warn); background: rgba(217,119,6,0.08); border-color: rgba(217,119,6,0.25)"
           >
@@ -137,7 +153,7 @@ const onJumpToMatrix = () => {
       <Icon name="lock" :size="15" stroke="#d97706" />
       <div class="s-banner-text">
         <b>S 系规则当前批次未启用,规则字段不可编辑。</b>
-        21 条业态专属规则的计算逻辑仍在优化中,规则定义仅供查阅,不参与判定计算。
+        S 系专属规则的计算逻辑仍在优化中,规则定义仅供查阅,不参与判定计算。
       </div>
     </div>
 
@@ -177,7 +193,6 @@ const onJumpToMatrix = () => {
             <option value="高">高</option>
             <option value="中">中</option>
             <option value="低">低</option>
-            <option value="分组">分组(仅 D05)</option>
           </select>
         </FormField>
         <FormField label="启用状态" :changed="isFieldChanged('isEnabled')">
@@ -242,26 +257,35 @@ const onJumpToMatrix = () => {
         <span class="section-hint">规则的核心判定逻辑说明</span>
       </div>
 
-      <FormField
-        label="判定标准描述" full-width :changed="isFieldChanged('judgment')"
-        hint="描述规则要检测的异常现象及依据"
-      >
-        <textarea class="form-textarea" rows="3" :disabled="isSeriesLocked" v-model="form.judgment" />
-      </FormField>
+      <div class="form-grid">
+        <FormField
+          label="判定标准描述" full-width :changed="isFieldChanged('judgment')"
+          hint="描述规则要检测的异常现象及依据"
+        >
+          <textarea class="form-textarea" rows="3" :disabled="isSeriesLocked" v-model="form.judgment" />
+        </FormField>
 
-      <FormField
-        label="阈值描述" full-width :changed="isFieldChanged('thresholdDesc')"
-        :hint="rule.series === 'D' ? 'D 系规则的阈值按业态差异化,详见下方矩阵' : 'C 系全业态统一阈值'"
-      >
-        <textarea class="form-textarea" rows="2" :disabled="isSeriesLocked" v-model="form.thresholdDesc" />
-      </FormField>
+        <FormField
+          label="阈值描述" full-width :changed="isFieldChanged('thresholdDesc')"
+          :hint="rule.series === 'D' ? 'D 系规则的阈值按业态差异化,详见下方矩阵' : 'C 系全业态统一阈值'"
+        >
+          <textarea class="form-textarea" rows="2" :disabled="isSeriesLocked" v-model="form.thresholdDesc" />
+        </FormField>
 
-      <FormField
-        label="所需计量节点" read-only full-width
-        hint="节点要求由数据源约束,不可修改。变更请提交系统调整申请"
-      >
-        <div class="ro-value ro-value-block mono">{{ rule.nodeReq }}</div>
-      </FormField>
+        <FormField
+          label="所需计量节点" read-only full-width
+          hint="节点要求由数据源约束,不可修改。变更请提交系统调整申请"
+        >
+          <div class="ro-value ro-value-block mono">{{ rule.nodeReq }}</div>
+        </FormField>
+
+        <FormField
+          label="节点优先级" read-only full-width
+          hint="匹配计量节点的先后顺序权重，以 > 分隔"
+        >
+          <div class="ro-value ro-value-block mono">{{ rule.nodePriority }}</div>
+        </FormField>
+      </div>
     </div>
 
     <!-- ─── D 系业态阈值预览 ─── -->
@@ -271,7 +295,7 @@ const onJumpToMatrix = () => {
           <Icon name="sliders" :size="15" stroke="var(--brand)" />
           <span class="detail-section-title">业态差异化阈值</span>
         </div>
-        <span class="section-hint">该规则在 11 个业态下的阈值配置(BY 居民不参与判定)</span>
+        <span class="section-hint">该规则在各分业态下的阈值配置（其中居民不参与判定）</span>
       </div>
       <ThresholdPreview :rule-code="rule.ruleCode" @jump-to-matrix="onJumpToMatrix" />
     </div>
@@ -305,3 +329,4 @@ const onJumpToMatrix = () => {
     </div>
   </div>
 </template>
+

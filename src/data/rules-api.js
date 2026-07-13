@@ -1,52 +1,121 @@
 /* ═══════════════════════════════════════════════════════════════
    rules-api.js · 判定规则模块数据访问层
    ───────────────────────────────────────────────────────────────
-   当前:直接返回本地 mock 数据(rules-data.js / rule-manual.js / threshold-map.js)。
-   未来:数据将通过后端接口获取。届时只需替换本文件内各函数的实现
-        (改为 fetch/axios 调用真实接口),上层组件(RulesListPage /
-        RuleDetailPage)无需任何改动 —— 它们只依赖这里导出的函数签名。
-
-   建议的未来接口对照:
-     fetchRules()          → GET  /api/cx-rules
-     updateRule(id, patch) → PATCH /api/cx-rules/:id
-     fetchRuleManual(code) → GET  /api/cx-rules/:code/manual
-     fetchThresholdMap()   → GET  /api/cx-rule-thresholds
+   数据已全面对接后端接口（/api/CxRule），已移除 RULES_DATA 本地 Mock 数据。
    ═══════════════════════════════════════════════════════════════ */
-import { RULES_DATA } from "./rules-data.js";
 import { FUNC_MAP } from "./func-map.js";
 import { RULE_MANUAL, DEFAULT_MANUAL, getManual } from "./rule-manual.js";
 import { THRESHOLD_MAP } from "./threshold-map.js";
 
-// 模拟异步接口延迟(0ms,预留未来替换为真实网络请求时的 await 结构)
-const asyncResolve = (value) => Promise.resolve(value);
+const API_PREFIX = '/api/CxRule';
 
-/** 获取全部判定规则列表 */
-export function fetchRules() {
-  // 深拷贝避免调用方直接修改到"数据源"
-  return asyncResolve(RULES_DATA.map(r => ({ ...r })));
+// 辅助方法：发送 GET 请求
+async function httpGet(url, params = {}) {
+  const query = new URLSearchParams();
+  Object.keys(params).forEach(key => {
+    if (params[key] !== undefined && params[key] !== null) {
+      query.append(key, params[key]);
+    }
+  });
+  const queryString = query.toString() ? `?${query.toString()}` : '';
+  const response = await fetch(`${url}${queryString}`);
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  const result = await response.json();
+  return result.data;
 }
 
-/** 更新单条规则(当前仅内存态模拟,未来对接 PATCH 接口) */
-export function updateRule(cxRuleId, patch) {
-  const idx = RULES_DATA.findIndex(r => r.cxRuleId === cxRuleId);
-  if (idx !== -1) RULES_DATA[idx] = { ...RULES_DATA[idx], ...patch };
-  return asyncResolve(idx !== -1 ? { ...RULES_DATA[idx] } : null);
+// 辅助方法：发送 POST 请求
+async function httpPost(url, data = {}, params = {}) {
+  const query = new URLSearchParams();
+  Object.keys(params).forEach(key => {
+    if (params[key] !== undefined && params[key] !== null) {
+      query.append(key, params[key]);
+    }
+  });
+  const queryString = query.toString() ? `?${query.toString()}` : '';
+
+  const response = await fetch(`${url}${queryString}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  const result = await response.json();
+  return result.data;
+}
+
+/** 获取全部判定规则列表 */
+export async function fetchRules(params = {}) {
+  try {
+    const list = await httpGet(`${API_PREFIX}/getRuleList`, params);
+    return list || [];
+  } catch (error) {
+    console.error("fetchRules failed, fallback to empty list:", error);
+    return [];
+  }
+}
+
+/** 获取单条规则详情 */
+export async function fetchRuleDetail(cxRuleId) {
+  try {
+    return await httpGet(`${API_PREFIX}/getRuleDetail`, { ruleId: cxRuleId });
+  } catch (error) {
+    console.error("fetchRuleDetail failed:", error);
+    return null;
+  }
+}
+
+/** 更新单条规则 */
+export async function updateRule(cxRuleId, patch) {
+  try {
+    // 如果 patch 中只包含 isEnabled，直接调用后端的 toggleRuleStatus 状态切换接口
+    const keys = Object.keys(patch);
+    if (keys.length === 1 && keys[0] === 'isEnabled') {
+      const success = await httpPost(`${API_PREFIX}/toggleRuleStatus`, {}, { ruleId: cxRuleId });
+      return success ? { cxRuleId, ...patch } : null;
+    }
+
+    // 直接提交完整数据，无需再查一次详情（调用方已持有完整数据）
+    const data = { cxRuleId, ...patch };
+    const success = await httpPost(`${API_PREFIX}/updateRule`, data);
+    return success ? data : null;
+  } catch (error) {
+    console.error("updateRule failed:", error);
+    throw error;
+  }
+}
+
+/** 新建单条规则 */
+export async function createRule(data) {
+  try {
+    const success = await httpPost(`${API_PREFIX}/createRule`, data);
+    return success ? data : null;
+  } catch (error) {
+    console.error("createRule failed:", error);
+    throw error;
+  }
 }
 
 /** 业态代码 → 业态名称 映射 */
 export function fetchFuncMap() {
-  return asyncResolve({ ...FUNC_MAP });
+  return Promise.resolve({ ...FUNC_MAP });
 }
 
 /** 规则手册原文(按规则分类编码取,取不到则返回默认模板) */
 export function fetchRuleManual(rule) {
-  return asyncResolve(getManual(rule));
+  return Promise.resolve(getManual(rule));
 }
 
 /** D 系规则的业态差异化阈值预览数据 */
 export function fetchThresholdMap() {
-  return asyncResolve({ ...THRESHOLD_MAP });
+  return Promise.resolve({ ...THRESHOLD_MAP });
 }
 
-// 同步版本(部分场景如详情页初始表单值需要在渲染前直接取值,保留同步导出)
-export { RULE_MANUAL, DEFAULT_MANUAL, getManual, THRESHOLD_MAP, FUNC_MAP, RULES_DATA };
+// 同步版本支持详情页初始值（从本地获取兜底映射）
+export { RULE_MANUAL, DEFAULT_MANUAL, getManual, THRESHOLD_MAP, FUNC_MAP };
