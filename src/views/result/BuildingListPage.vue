@@ -194,16 +194,6 @@ const onOpenBuilding = (b) => {
           </button>
         </div>
 
-        <!-- 底部提示 -->
-        <div v-if="sorted.length > 0" class="bld-list-foot">
-          <div class="footer-hint">
-            <Icon name="info" :size="12" stroke="#6a7da3" />
-            <span>点击卡片将进入 <b>建筑详情页(4.3)</b>,查看每条命中规则的判定详情与调适建议</span>
-          </div>
-          <div class="footer-meta mono">
-            数据源:<code class="inline-code">T_ST_CxRuleResult</code> · 分析年份 {{ year }}
-          </div>
-        </div>
       </div>
     </div>
   </div>

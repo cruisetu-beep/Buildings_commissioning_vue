@@ -57,6 +57,11 @@
         border-radius: 12px;
         padding: 16px;
         box-shadow: var(--shadow-md);
+        /* 固定高度,约等于右侧"3行×3列=9个卡片"渲染出来的高度(工具栏+卡片区+分页栏)。
+           这是按现有卡片样式的字号/间距手算出的估算值,不是运行时动态测量,
+           如果和实际渲染高度有偏差,告诉我具体差多少像素,我再调整这个数值。 */
+        height: 760px;
+        overflow-y: auto;
       }
       .lfp-head {
         display: flex; align-items: center; justify-content: space-between;
@@ -324,13 +329,6 @@
         border: 1px dashed var(--line); border-radius: 12px;
         color: var(--text-2); font-size: 13px;
       }
-      .bld-list-foot {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 12px 16px; margin-top: 14px;
-        background: linear-gradient(180deg, transparent, #fafcff);
-        border: 1px solid var(--line); border-radius: 8px;
-      }
-
       /* ─── 分页 ─── */
       .bld-pagination {
         display: flex; align-items: center; justify-content: center; gap: 14px;
