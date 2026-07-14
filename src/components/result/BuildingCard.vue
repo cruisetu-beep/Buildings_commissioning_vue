@@ -124,7 +124,6 @@ function ruleClass(code) {
   border-radius: 12px;
   padding: 15px 16px 13px;
   max-width: 420px;
-  justify-self: start;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   cursor: pointer;
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
