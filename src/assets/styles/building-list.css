@@ -193,11 +193,11 @@
       }
 
       /* ─── 建筑卡片网格 ───
-         设计稿原定 380px/gap 20px,按要求适当缩短为 320px/gap 16px,
-         卡片内部设计比例(内边距/字号)保持设计稿原样不变。 */
+         弹性宽度撑满:一行稳定 3 张卡片,消除固定宽度导致的右侧空白。
+         minmax 下限沿用设计稿卡片的最小可用宽度。 */
       .bld-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, 320px);
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
         gap: 16px;
       }
 
