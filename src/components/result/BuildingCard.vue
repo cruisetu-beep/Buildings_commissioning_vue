@@ -32,6 +32,7 @@ const dimmed = computed(() => props.building.category === "无节点" || props.b
 
     <div class="bld-card-tags-row">
       <BuildFuncTag :func="building.buildFunc" :func-name="building.buildFuncName" />
+      <CategoryStatusChip :category="building.category" />
     </div>
 
     <div class="bld-card-rules">
@@ -41,7 +42,5 @@ const dimmed = computed(() => props.building.category === "无节点" || props.b
       </div>
       <RuleChipsRow :rules="building.hitRules" :max-show="8" />
     </div>
-
-    <CategoryStatusChip :category="building.category" />
   </div>
 </template>
