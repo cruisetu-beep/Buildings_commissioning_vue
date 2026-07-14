@@ -23,6 +23,8 @@ const dimmed = computed(() => props.building.category === "无节点" || props.b
     <div class="bld-card-corner-tl" />
     <div class="bld-card-corner-br" />
 
+    <div class="bld-card-name">{{ building.name }}</div>
+
     <div class="bld-card-top">
       <div class="bld-card-id-row">
         <span class="bld-id mono">{{ building.buildId }}</span>
@@ -31,7 +33,7 @@ const dimmed = computed(() => props.building.category === "无节点" || props.b
       <HitCountBadge :count="building.hitCount" size="md" />
     </div>
 
-    <div class="bld-card-name">{{ building.name }}</div>
+    <CategoryStatusChip :category="building.category" />
 
     <div class="bld-card-rules">
       <div class="bld-card-rules-label">
@@ -43,7 +45,6 @@ const dimmed = computed(() => props.building.category === "无节点" || props.b
 
     <div class="bld-card-foot">
       <div class="bld-foot-left">
-        <CategoryStatusChip :category="building.category" />
         <span v-if="building.nodeCoverage !== '完整'" class="node-warn mono" :title="`节点覆盖:${building.nodeCoverage}`">
           <Icon name="alert" :size="10" stroke="#d97706" />
           节点{{ building.nodeCoverage }}
