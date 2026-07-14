@@ -114,6 +114,61 @@
       .func-check-name { color: var(--text-1); }
       .func-check.on .func-check-name { color: var(--text-0); font-weight: 500; }
 
+      /* ─── 命中具体规则筛选(RuleFilter) ─── */
+      .rf-series-row {
+        display: flex; align-items: center; gap: 6px;
+        margin: 10px 0 6px;
+      }
+      .rf-series-row:first-child { margin-top: 0; }
+      .rf-series-label {
+        font-size: 11px; font-weight: 500; color: var(--text-2);
+        letter-spacing: 0.2px;
+      }
+      .rf-select-all {
+        font-size: 10px; color: var(--text-3);
+        background: transparent; border: none; cursor: pointer;
+        padding: 0; font-family: inherit;
+      }
+      .rf-select-all:hover { color: var(--brand); text-decoration: underline; }
+      .rf-expand-btn {
+        display: inline-flex; align-items: center; gap: 2px;
+        margin-left: auto;
+        font-size: 10.5px; color: var(--text-2);
+        background: transparent; border: none; cursor: pointer;
+        padding: 0; font-family: inherit;
+      }
+      .rf-expand-btn:hover { color: var(--brand); }
+
+      .rf-chip-grid {
+        display: flex; flex-wrap: wrap; gap: 5px;
+      }
+      .rf-chip-grid.inline { gap: 4px; }
+      .rf-chip {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 10.5px; font-weight: 600; letter-spacing: 0.2px;
+        padding: 3px 7px;
+        background: white; border: 1px solid var(--line);
+        border-radius: 4px; cursor: pointer;
+        color: var(--text-2);
+        transition: all 0.12s;
+      }
+      .rf-chip:hover { border-color: var(--line-strong); }
+      .rf-chip.series-c.on { color: white; background: var(--series-c); border-color: var(--series-c); }
+      .rf-chip.series-d.on { color: white; background: var(--series-d); border-color: var(--series-d); }
+      .rf-chip.series-s.on { color: white; background: var(--series-s); border-color: var(--series-s); }
+
+      .rf-s-groups {
+        display: flex; flex-direction: column; gap: 6px;
+        padding-top: 4px;
+      }
+      .rf-s-row {
+        display: flex; align-items: center; gap: 8px;
+      }
+      .rf-s-func {
+        flex: none; width: 22px;
+        font-size: 10px; font-weight: 700; color: var(--text-3);
+      }
+
       /* ─── 右侧工具栏 ─── */
       .bld-toolbar {
         display: flex; align-items: center; justify-content: space-between;

@@ -20,7 +20,7 @@ const quick = ref("target"); // 默认目标调适全量
 const sortKey = ref("hitCount");
 const viewMode = ref("card"); // card / table(预留)
 const search = ref("");
-const filters = reactive({ funcs: [], hitMin: 0, hitMax: 10, archives: [] });
+const filters = reactive({ funcs: [], hitMin: 0, hitMax: 10, archives: [], rules: [] });
 
 const buildings = ref([]);
 const loading = ref(true);
@@ -55,6 +55,7 @@ const filtered = computed(() => {
     if (filters.funcs.length > 0 && !filters.funcs.includes(b.buildFunc)) return false;
     if (b.hitCount < filters.hitMin || b.hitCount > filters.hitMax) return false;
     if (filters.archives.length > 0 && !filters.archives.includes(b.status)) return false;
+    if (filters.rules.length > 0 && !b.hitRules.some((r) => filters.rules.includes(r))) return false;
 
     if (search.value) {
       const q = search.value.toLowerCase();
@@ -78,6 +79,7 @@ const resetFilters = () => {
   filters.hitMin = 0;
   filters.hitMax = 10;
   filters.archives = [];
+  filters.rules = [];
 };
 
 const onOpenBuilding = (b) => {
