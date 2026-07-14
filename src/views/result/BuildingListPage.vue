@@ -2,7 +2,7 @@
 /* ═══════════════════════════════════════════════════════════════
    BuildingListPage · 页面 4.1 建筑清单
    ═══════════════════════════════════════════════════════════════ */
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import Breadcrumb from "../../components/layout/Breadcrumb.vue";
 import Icon from "../../components/icons/Icon.vue";
@@ -81,6 +81,17 @@ const resetFilters = () => {
   filters.archives = [];
   filters.rules = [];
 };
+
+// ─── 分页(每页 9 个,避免建筑数量多时一次性渲染卡片导致卡顿) ───
+const PAGE_SIZE = 9;
+const page = ref(1);
+const pageCount = computed(() => Math.max(1, Math.ceil(sorted.value.length / PAGE_SIZE)));
+const paged = computed(() => sorted.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE));
+
+// 筛选条件、搜索关键词或排序变化时,结果集会变,回到第 1 页避免停留在空页
+watch([quick, search, sortKey, filters], () => {
+  page.value = 1;
+}, { deep: true });
 
 const onOpenBuilding = (b) => {
   router.push(`/result/${b.buildId}`);
@@ -164,12 +175,23 @@ const onOpenBuilding = (b) => {
           <button class="btn ghost sm" @click="resetFilters"><Icon name="x" :size="12" /> 重置筛选</button>
         </div>
         <div v-else-if="viewMode === 'card'" class="bld-grid">
-          <BuildingCard v-for="b in sorted" :key="b.buildId" :building="b" @click="onOpenBuilding(b)" />
+          <BuildingCard v-for="b in paged" :key="b.buildId" :building="b" @click="onOpenBuilding(b)" />
         </div>
         <div v-else class="bld-empty">
           <Icon name="list" :size="36" stroke="#c5cee0" />
           <div>表格视图待第二批实现</div>
           <button class="btn ghost sm" @click="viewMode = 'card'"><Icon name="layers" :size="12" /> 切回卡片视图</button>
+        </div>
+
+        <!-- 分页 -->
+        <div v-if="viewMode === 'card' && sorted.length > 0" class="bld-pagination">
+          <button class="page-btn" :disabled="page === 1" @click="page--">
+            <Icon name="chevron-l" :size="14" />
+          </button>
+          <span class="page-info mono">第 <b>{{ page }}</b> / {{ pageCount }} 页</span>
+          <button class="page-btn" :disabled="page === pageCount" @click="page++">
+            <Icon name="chevron-r" :size="14" />
+          </button>
         </div>
 
         <!-- 底部提示 -->

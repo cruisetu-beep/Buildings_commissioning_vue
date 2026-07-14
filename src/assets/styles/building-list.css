@@ -331,6 +331,22 @@
         border: 1px solid var(--line); border-radius: 8px;
       }
 
+      /* ─── 分页 ─── */
+      .bld-pagination {
+        display: flex; align-items: center; justify-content: center; gap: 14px;
+        margin-top: 16px; padding: 10px 0;
+      }
+      .page-btn {
+        display: grid; place-items: center;
+        width: 30px; height: 30px;
+        background: white; border: 1px solid var(--line);
+        border-radius: 6px; cursor: pointer; color: var(--text-1);
+      }
+      .page-btn:hover:not(:disabled) { border-color: var(--line-strong); color: var(--brand); }
+      .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+      .page-info { font-size: 12.5px; color: var(--text-2); }
+      .page-info b { color: var(--text-0); font-size: 14px; }
+
       /* ─── 响应式:窄屏两栏折叠 ─── */
       @media (max-width: 1200px) {
         .quick-filter-bar { grid-template-columns: repeat(3, 1fr); }
