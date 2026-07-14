@@ -97,8 +97,7 @@ const onOpenBuilding = (b) => {
         </h1>
         <div class="page-subtitle">
           规则引擎判定结果的建筑维度聚合。共 <b>{{ counts.all }} 栋</b> 建筑参与本次分析,
-          其中 <b :style="{ color: 'var(--hit-7plus)' }">{{ counts.high }} 栋</b>(命中≥4条,排除D01)为高优先级复合异常建筑。
-          数据源 <code class="inline-code mono">T_ST_CxRuleResult</code>。
+          其中 <b :style="{ color: 'var(--status-target)' }">{{ counts.target }} 幢</b>为目标调适建筑。
         </div>
       </div>
       <div class="page-head-actions">
