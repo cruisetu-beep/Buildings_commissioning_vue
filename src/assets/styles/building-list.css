@@ -60,10 +60,10 @@
       }
       .lfp-head {
         display: flex; align-items: center; justify-content: space-between;
-        min-height: 24px;
         margin-bottom: 12px; padding-bottom: 12px;
         border-bottom: 1px solid var(--line-soft);
       }
+      .is-hidden { visibility: hidden; }
       .lfp-head-title {
         display: flex; align-items: center; gap: 6px;
         font-size: 13px; font-weight: 600; color: var(--text-0);

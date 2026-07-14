@@ -60,9 +60,9 @@ const activeCount = computed(() => filters.value.funcs.length + filters.value.ru
       <div class="lfp-head-title">
         <Icon name="filter" :size="14" stroke="var(--brand)" />
         <span>筛选</span>
-        <span v-if="activeCount > 0" class="lfp-active-count mono">{{ activeCount }}</span>
+        <span class="lfp-active-count mono" :class="{ 'is-hidden': activeCount === 0 }">{{ activeCount }}</span>
       </div>
-      <button v-if="activeCount > 0" class="lfp-reset" @click="emit('reset')">
+      <button class="lfp-reset" :class="{ 'is-hidden': activeCount === 0 }" @click="emit('reset')">
         <Icon name="x" :size="11" /> 重置
       </button>
     </div>
