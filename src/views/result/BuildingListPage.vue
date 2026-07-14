@@ -16,7 +16,7 @@ import "../../assets/styles/building-list.css";
 const router = useRouter();
 
 const year = ref(2025);
-const quick = ref("high"); // 默认高优先级复合
+const quick = ref("target"); // 默认目标调适全量
 const sortKey = ref("hitCount");
 const viewMode = ref("card"); // card / table(预留)
 const search = ref("");
