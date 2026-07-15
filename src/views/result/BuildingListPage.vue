@@ -193,7 +193,6 @@ const onOpenBuilding = (b) => {
             <Icon name="chevron-r" :size="14" />
           </button>
         </div>
-
       </div>
     </div>
   </div>
