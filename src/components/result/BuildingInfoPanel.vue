@@ -1,12 +1,11 @@
 <script setup>
 /* ═══════════════════════════════════════════════════════════════
-   BuildingInfoPanel · 建筑元信息 + 节点覆盖 + 调适档案
+   BuildingInfoPanel · 建筑元信息 + 节点覆盖
    建筑基本信息 / 计量节点覆盖 两张卡默认收起,展开互斥(同一时刻只能开一张)。
    ═══════════════════════════════════════════════════════════════ */
 import { ref, computed } from "vue";
 import Icon from "../icons/Icon.vue";
 import BuildFuncTag from "../common/BuildFuncTag.vue";
-import ArchiveStatusChip from "../common/ArchiveStatusChip.vue";
 import { genBuildingMeta } from "../../data/building-detail-data.js";
 
 const props = defineProps({
@@ -91,50 +90,6 @@ const toggle = (key) => {
           <span class="node-cat">{{ n.category }}</span>
         </div>
       </div>
-    </div>
-
-    <!-- 调适档案(不参与折叠互斥,始终展开) -->
-    <div class="card bip-card">
-      <div class="bip-card-title">
-        <Icon name="lightbulb" :size="13" stroke="var(--brand)" />
-        <span>调适档案</span>
-        <ArchiveStatusChip :status="building.status" />
-      </div>
-
-      <div v-if="building.status === '已调适'" class="archive-info">
-        <div class="ai-row">
-          <span class="ai-label">调适年份</span>
-          <span class="ai-value mono">2023</span>
-        </div>
-        <div class="ai-row">
-          <span class="ai-label">措施类别</span>
-          <div class="ai-tags">
-            <span class="ai-tag">制冷系统调适</span>
-            <span class="ai-tag">输配变频优化</span>
-            <span class="ai-tag">BA自控优化</span>
-          </div>
-        </div>
-        <div class="ai-row">
-          <span class="ai-label">节能率</span>
-          <span class="ai-value mono" style="color: var(--ok)">-12.4%</span>
-        </div>
-      </div>
-      <div v-else-if="building.status === '待调适'" class="archive-info-empty">
-        <Icon name="target" :size="20" stroke="var(--warn)" />
-        <div>已列入 <b>待调适</b> 名单</div>
-        <div class="aie-sub">建议在下一调适批次纳入实施</div>
-      </div>
-      <div v-else class="archive-info-empty">
-        <Icon name="info" :size="20" stroke="var(--text-3)" />
-        <div>暂未登记调适档案</div>
-        <div class="aie-sub">可根据判定结果生成调适建议</div>
-      </div>
-
-      <button class="btn ghost bip-generate-btn">
-        <Icon name="lightbulb" :size="13" />
-        {{ building.status === "未登记" ? "生成调适建议" : "查看/更新建议" }}
-        <span class="ql-sub"> → 6.2(待第二批)</span>
-      </button>
     </div>
   </div>
 </template>

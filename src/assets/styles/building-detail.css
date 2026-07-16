@@ -478,44 +478,6 @@
         font-size: 10px; color: var(--text-3);
       }
 
-      /* 调适档案 */
-      .archive-info {
-        display: flex; flex-direction: column; gap: 10px;
-      }
-      .ai-row {
-        display: flex; align-items: flex-start; gap: 10px; font-size: 11.5px;
-      }
-      .ai-label {
-        color: var(--text-2); min-width: 60px;
-      }
-      .ai-value {
-        color: var(--text-0); font-weight: 600;
-      }
-      .ai-tags {
-        display: flex; flex-wrap: wrap; gap: 4px; flex: 1;
-      }
-      .ai-tag {
-        padding: 2px 7px; font-size: 10.5px;
-        background: rgba(3,105,161,0.08); color: #0369a1;
-        border: 1px solid rgba(3,105,161,0.22);
-        border-radius: 3px;
-      }
-      .archive-info-empty {
-        display: flex; flex-direction: column; align-items: center; gap: 6px;
-        padding: 16px 12px;
-        text-align: center;
-        font-size: 12px; color: var(--text-1);
-      }
-      .aie-sub {
-        font-size: 10.5px; color: var(--text-3);
-      }
-      .archive-info-empty b { color: var(--warn); font-weight: 600; }
-      .bip-generate-btn {
-        display: flex; align-items: center; gap: 5px;
-        width: 100%; justify-content: center;
-        margin-top: 12px;
-      }
-
       /* ─── 响应式 ─── */
       @media (max-width: 1400px) {
         .bd-three-col { grid-template-columns: 280px 1fr; }
