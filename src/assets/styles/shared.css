@@ -169,6 +169,40 @@
         letter-spacing: 0.3px;
       }
 
+      /* ─── BuildFuncTag(跨 4.1/4.3 复用,故放全局) ─── */
+      .func-tag {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 2px 8px 2px 4px;
+        font-size: 10.5px;
+        border: 1px solid; border-radius: 4px;
+      }
+      .func-code {
+        display: inline-block; padding: 1px 5px;
+        background: rgba(255,255,255,0.6);
+        border-radius: 3px;
+        font-weight: 700; letter-spacing: 0.4px;
+        font-size: 10px;
+      }
+      .func-name { font-weight: 500; }
+
+      /* ─── CategoryStatusChip(跨 4.1/4.3 复用,故放全局) ─── */
+      .cat-chip {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 2px 6px 2px 5px;
+        font-size: 11px; font-weight: 500;
+        border: 1px solid; border-radius: 4px;
+      }
+      .cat-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+      /* ─── ArchiveStatusChip(跨 4.1/4.3 复用,故放全局) ─── */
+      .archive-chip {
+        display: inline-flex; align-items: center;
+        padding: 2px 8px;
+        font-size: 11px;
+        border: 1px solid; border-radius: 4px;
+        font-weight: 500;
+      }
+
       /* ───────────────── SubTabs ───────────────── */
       .sub-tabs {
         display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
@@ -492,6 +526,56 @@
         color: var(--text-3); border-radius: 4px;
       }
       .toast-close:hover { background: var(--bg-2); color: var(--text-1); }
+
+      /* ───────────────── Modal 基础样式 ─────────────────
+         跨模块通用的弹窗骨架(遮罩/卡片/头/体/脚)。
+         原先只在 threshold-matrix.css 里定义,其他模块开 Modal 时拿不到样式
+         (页面级样式表的作用域陷阱),现挪到这里全局复用。 */
+      .modal-overlay {
+        position: fixed; inset: 0; z-index: 200;
+        background: rgba(15,29,61,0.35);
+        backdrop-filter: blur(4px);
+        display: grid; place-items: center;
+        animation: overlay-in 0.15s ease;
+      }
+      @keyframes overlay-in {
+        from { opacity: 0; } to { opacity: 1; }
+      }
+      .modal-card {
+        width: 560px; max-width: 92vw; max-height: 88vh;
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        box-shadow: 0 20px 60px rgba(15,29,61,0.20);
+        display: flex; flex-direction: column;
+        overflow: hidden;
+      }
+      .modal-sm { width: 420px; }
+      .modal-head {
+        padding: 20px 24px 16px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .modal-title-row {
+        display: flex; align-items: flex-start; gap: 12px;
+      }
+      .modal-title {
+        margin: 0; font-size: 15px; font-weight: 600; color: var(--text-0);
+      }
+      .modal-sub {
+        font-size: 12.5px; color: var(--text-1);
+        margin-top: 6px; line-height: 1.6;
+      }
+      .modal-sub b { color: var(--text-0); font-weight: 600; }
+      .modal-body {
+        padding: 16px 24px;
+        overflow-y: auto; max-height: 400px;
+      }
+      .modal-foot {
+        display: flex; justify-content: flex-end; gap: 8px;
+        padding: 14px 20px;
+        border-top: 1px solid var(--line-soft);
+        background: #fafcff;
+      }
 
       /* ───────────────── 其他微调 ───────────────── */
       .rules-body {

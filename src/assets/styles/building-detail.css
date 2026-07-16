@@ -19,30 +19,90 @@
       .bd-head-name {
         font-size: 20px; font-weight: 600; color: var(--text-0);
       }
-      .bd-head-tags {
+      .bd-head-stats {
         display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-        margin-bottom: 8px;
       }
-      .bd-head-meta {
-        font-size: 12px; color: var(--text-2); line-height: 1.7;
-        max-width: 780px;
+      /* 统计 chip · 通用骨架 */
+      .bd-stat-chip {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 3px 10px 3px 8px;
+        font-size: 12px;
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        white-space: nowrap;
+        color: var(--text-1);
+        line-height: 1.5;
       }
-      .bd-head-meta b { font-weight: 600; }
+      .bd-stat-num {
+        font-size: 13.5px; font-weight: 700;
+        margin: 0 1px;
+        letter-spacing: -0.3px;
+      }
+      /* 目标调适 · 红/橙 */
+      .bd-stat-chip.target {
+        color: var(--status-target);
+        background: rgba(220,38,38,0.06);
+        border-color: rgba(220,38,38,0.22);
+      }
+      /* 正常规则 · 绿 */
+      .bd-stat-chip.normal {
+        color: var(--status-normal);
+        background: rgba(24,165,114,0.06);
+        border-color: rgba(24,165,114,0.22);
+      }
+      /* 节点覆盖不全的黄色警告 */
+      .bd-head-stats .node-warn {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 3px 8px;
+        font-size: 11px;
+        color: #b45309;
+        background: rgba(217,119,6,0.08);
+        border: 1px solid rgba(217,119,6,0.25);
+        border-radius: 4px;
+      }
 
-      /* ─── 三栏布局 ─── */
+      /* 返回按钮 · 4.3 页专属(和其他页面的 .back-btn 保持独立) */
+      .bd-back-btn {
+        display: inline-flex; align-items: center; gap: 3px;
+        padding: 5px 10px 5px 7px;
+        font-size: 12px; color: var(--text-2);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+        align-self: flex-start;
+        margin-top: 2px;
+      }
+      .bd-back-btn:hover {
+        color: var(--brand);
+        background: rgba(47,127,255,0.06);
+      }
+      .bd-back-btn:active { transform: translateY(1px); }
+
+      /* ─── 两栏布局(class 名沿用旧的 bd-three-col,避免波及既有选择器) ─── */
       .bd-three-col {
         display: grid;
-        grid-template-columns: 300px 1fr 340px;
+        grid-template-columns: 320px 1fr;
         gap: 14px;
-        align-items: flex-start;
+        align-items: stretch;
+      }
+      .bd-left {
+        display: flex; flex-direction: column; gap: 12px;
+        min-width: 0;
+        max-height: calc(100vh - 220px);
+        overflow-y: auto;
       }
 
       /* ─── 左栏:规则大纲 ─── */
       .rule-outline {
         padding: 0; overflow: hidden;
-        position: sticky; top: 78px;
-        max-height: calc(100vh - 100px);
         display: flex; flex-direction: column;
+        flex: 1;
+        min-height: 0;
       }
       .ro-header {
         padding: 14px 16px 12px;
@@ -130,7 +190,12 @@
       }
 
       /* ─── 中栏:规则详情主区 ─── */
-      .bd-mid { padding: 20px 22px; min-height: 500px; }
+      .bd-mid {
+        padding: 20px 22px;
+        min-height: 500px;
+        max-height: calc(100vh - 220px);
+        overflow-y: auto;
+      }
 
       .rd-empty {
         display: flex; flex-direction: column; align-items: center; gap: 12px;
@@ -302,10 +367,29 @@
         border-radius: 3px;
       }
 
-      .rd-viz-jump { margin-top: 20px; }
+      .rd-viz-btn {
+        margin-left: auto;
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 5px 11px;
+        font-size: 12px; font-weight: 500;
+        color: var(--brand);
+        background: rgba(47,127,255,0.06);
+        border: 1px solid rgba(47,127,255,0.25);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        font-family: inherit;
+      }
+      .rd-viz-btn:hover {
+        background: rgba(47,127,255,0.12);
+        border-color: var(--brand);
+        box-shadow: 0 2px 8px rgba(47,127,255,0.15);
+      }
+      .rd-viz-btn:active {
+        transform: translateY(1px);
+      }
 
-      /* ─── 右栏 · 建筑信息面板 ─── */
-      .bd-right { position: sticky; top: 78px; }
+      /* ─── 建筑信息面板(现位于左栏顶部) ─── */
       .bip-wrap {
         display: flex; flex-direction: column; gap: 12px;
       }
@@ -408,9 +492,10 @@
 
       /* ─── 响应式 ─── */
       @media (max-width: 1400px) {
-        .bd-three-col { grid-template-columns: 260px 1fr 300px; }
+        .bd-three-col { grid-template-columns: 280px 1fr; }
       }
       @media (max-width: 1180px) {
         .bd-three-col { grid-template-columns: 1fr; }
-        .rule-outline, .bd-right { position: static; max-height: none; }
+        .bd-left { max-height: none; }
+        .rule-outline { position: static; }
       }

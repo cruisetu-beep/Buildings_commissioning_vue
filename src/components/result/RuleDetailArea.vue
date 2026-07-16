@@ -33,6 +33,10 @@ const w = computed(() => props.result?.windows?.[windowIdx.value]);
       <div class="rd-head-title">
         <span class="rd-code mono">{{ result.ruleCode }}</span>
         <span class="rd-name">{{ result.ruleName }}</span>
+        <button v-if="result.hasChart" class="rd-viz-btn" @click="emit('jump-to-viz', result.ruleCode)">
+          <Icon name="flask" :size="13" />
+          <span>计算过程</span>
+        </button>
       </div>
       <div class="rd-head-tags">
         <SeriesTag :series="result.series" />
@@ -92,25 +96,5 @@ const w = computed(() => props.result?.windows?.[windowIdx.value]);
         </div>
       </div>
     </template>
-
-    <!-- 快捷跳转 -->
-    <div v-if="result.hasChart" class="rd-viz-jump">
-      <button class="quick-link-btn" @click="emit('jump-to-viz', result.ruleCode)">
-        <Icon name="flask" :size="14" stroke="var(--brand)" />
-        <div>
-          <div class="ql-title">查看该规则的算法可视化</div>
-          <div class="ql-sub">→ 页面 5.2 · 计算过程与数据</div>
-        </div>
-      </button>
-    </div>
-    <div v-if="!result.hasChart && result.category === '目标调适'" class="rd-viz-jump">
-      <div class="quick-link-btn" style="opacity: 0.6; cursor: default">
-        <Icon name="lock" :size="14" stroke="var(--text-3)" />
-        <div>
-          <div class="ql-title">该规则的可视化待第二批实现</div>
-          <div class="ql-sub">第一批仅覆盖 C01 · D01 · D02 · C04</div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
