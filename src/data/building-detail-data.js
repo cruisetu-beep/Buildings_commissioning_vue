@@ -69,6 +69,9 @@ const RULE_VALUE_MEANING = {
     { key:"V3", name:"低簇均值",   unit:"kW", desc:"低工况平均电耗" },
     { key:"V4", name:"高簇均值",   unit:"kW", desc:"高工况平均电耗" },
     { key:"V5", name:"簇间距离",   unit:"kW", desc:"两簇中心距离" },
+    { key:"V6", name:"低簇样本数", unit:"h",  desc:"归入低工况簇的小时数" },
+    { key:"V7", name:"高簇样本数", unit:"h",  desc:"归入高工况簇的小时数" },
+    { key:"V8", name:"温度带宽",   unit:"℃", desc:"聚类使用的干球温度范围宽度" },
   ],
   "C02": [
     { key:"V1", name:"湿球降幅",   unit:"℃", desc:"窗口内湿球下降值" },
@@ -149,7 +152,10 @@ function genValues(ruleCode, bld, windowIdx, triggered) {
       triggered ? "22.3" : "8.5", triggered ? "0.63" : "0.32",
       Math.round(380 + rnd(0, 40)).toString(),
       Math.round(590 + rnd(0, 40)).toString(),
-      Math.round(210 + rnd(0, 30)).toString()
+      Math.round(210 + rnd(0, 30)).toString(),
+      Math.round(28 + rnd(0, 8)).toString(),
+      Math.round(38 + rnd(0, 10)).toString(),
+      (2.4 + rnd(0, 1.2)).toFixed(1)
     ],
     "C02": [
       "-1.8", triggered ? "3.2" : "-8.5",
