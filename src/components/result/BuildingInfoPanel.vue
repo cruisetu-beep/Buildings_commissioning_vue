@@ -1,8 +1,9 @@
 <script setup>
 /* ═══════════════════════════════════════════════════════════════
-   BuildingInfoPanel · 右栏 · 建筑元信息 + 节点覆盖 + 调适档案
+   BuildingInfoPanel · 建筑元信息 + 节点覆盖 + 调适档案
+   建筑基本信息 / 计量节点覆盖 两张卡默认收起,展开互斥(同一时刻只能开一张)。
    ═══════════════════════════════════════════════════════════════ */
-import { computed } from "vue";
+import { ref, computed } from "vue";
 import Icon from "../icons/Icon.vue";
 import BuildFuncTag from "../common/BuildFuncTag.vue";
 import ArchiveStatusChip from "../common/ArchiveStatusChip.vue";
@@ -15,17 +16,36 @@ const props = defineProps({
 
 const meta = computed(() => genBuildingMeta(props.building));
 const availCount = computed(() => props.nodes.filter((n) => n.available).length);
+
+// 两张卡默认收起,展开互斥 · 同一时刻只能开一张
+// 值:null | "info" | "node"
+const expanded = ref(null);
+const infoOpen = computed(() => expanded.value === "info");
+const nodeOpen = computed(() => expanded.value === "node");
+const toggle = (key) => {
+  expanded.value = expanded.value === key ? null : key;
+};
 </script>
 
 <template>
   <div class="bip-wrap">
     <!-- 建筑基本信息 -->
-    <div class="card bip-card">
-      <div class="bip-card-title">
+    <div class="card bip-card" :class="{ collapsed: !infoOpen }">
+      <div
+        class="bip-card-title"
+        role="button"
+        tabindex="0"
+        @click="toggle('info')"
+        @keydown.enter.prevent="toggle('info')"
+        @keydown.space.prevent="toggle('info')"
+      >
         <Icon name="building" :size="13" stroke="var(--brand)" />
         <span>建筑基本信息</span>
+        <span class="bip-chev" :class="{ open: infoOpen }">
+          <Icon name="chevron-d" :size="13" stroke="var(--text-2)" />
+        </span>
       </div>
-      <dl class="bip-list">
+      <dl v-if="infoOpen" class="bip-list">
         <dt>建筑编号</dt>
         <dd class="mono">{{ building.buildId }}</dd>
         <dt>业态</dt>
@@ -44,13 +64,23 @@ const availCount = computed(() => props.nodes.filter((n) => n.available).length)
     </div>
 
     <!-- 计量节点覆盖 -->
-    <div class="card bip-card">
-      <div class="bip-card-title">
+    <div class="card bip-card" :class="{ collapsed: !nodeOpen }">
+      <div
+        class="bip-card-title"
+        role="button"
+        tabindex="0"
+        @click="toggle('node')"
+        @keydown.enter.prevent="toggle('node')"
+        @keydown.space.prevent="toggle('node')"
+      >
         <Icon name="layers" :size="13" stroke="var(--brand)" />
         <span>计量节点覆盖</span>
         <span class="bip-card-hint mono">{{ availCount }}/{{ nodes.length }}</span>
+        <span class="bip-chev" :class="{ open: nodeOpen }">
+          <Icon name="chevron-d" :size="13" stroke="var(--text-2)" />
+        </span>
       </div>
-      <div class="node-cov-list">
+      <div v-if="nodeOpen" class="node-cov-list">
         <div v-for="n in nodes" :key="n.code" class="node-cov-row" :class="{ missing: !n.available }">
           <span class="node-check" :class="n.available ? 'on' : 'off'">
             <Icon v-if="n.available" name="check" :size="10" stroke="#fff" />
@@ -63,7 +93,7 @@ const availCount = computed(() => props.nodes.filter((n) => n.available).length)
       </div>
     </div>
 
-    <!-- 调适档案 -->
+    <!-- 调适档案(不参与折叠互斥,始终展开) -->
     <div class="card bip-card">
       <div class="bip-card-title">
         <Icon name="lightbulb" :size="13" stroke="var(--brand)" />

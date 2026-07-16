@@ -400,10 +400,36 @@
         margin-bottom: 12px;
         padding-bottom: 10px;
         border-bottom: 1px solid var(--line-soft);
+        cursor: pointer; user-select: none;
+        outline: none;
+        transition: color 0.15s ease;
       }
+      .bip-card-title:hover { color: var(--brand); }
+      .bip-card-title:focus-visible {
+        box-shadow: 0 0 0 2px rgba(31,111,235,0.20);
+        border-radius: 3px;
+      }
+      /* 收起态:标题栏不再需要下边界 */
+      .bip-card.collapsed .bip-card-title {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+      /* chevron 图标 · 默认指右(收起),打开旋转 90° 指下 */
+      .bip-chev {
+        display: inline-flex; align-items: center;
+        margin-left: auto;
+        transform: rotate(-90deg);
+        transition: transform 0.2s ease;
+      }
+      .bip-chev.open { transform: rotate(0deg); }
       .bip-card-hint {
         font-size: 11px; color: var(--text-3);
         margin-left: auto;
+      }
+      /* 当标题右侧同时有 hint 和 chev,hint 顶右,chev 靠 hint · margin-left 复位 */
+      .bip-card-title .bip-card-hint + .bip-chev {
+        margin-left: 8px;
       }
 
       .bip-list {
