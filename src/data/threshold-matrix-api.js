@@ -6,8 +6,6 @@
    页面仍可正常使用;接口就绪后无需改动页面组件,仅需确认下方
    API_PREFIX 与实际路由一致即可。
    ═══════════════════════════════════════════════════════════════ */
-import { DEFAULT_THRESHOLDS } from "./threshold-matrix-data.js";
-
 const API_PREFIX = "/api/CxRuleFuncThreshold";
 
 const REQUEST_TIMEOUT_MS = 8000;
@@ -61,14 +59,14 @@ async function httpPost(url, data = {}, params = {}) {
   }
 }
 
-/** 获取当前生效的阈值矩阵(rule → func → value)。接口未就绪时降级为出厂默认值。 */
+/** 获取当前生效的阈值矩阵(rule → func → value)。 */
 export async function fetchThresholds() {
   try {
     const data = await httpGet(`${API_PREFIX}/getThresholds`);
-    return data || JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));
+    return data || {};
   } catch (error) {
-    console.warn("fetchThresholds failed, fallback to DEFAULT_THRESHOLDS:", error);
-    return JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));
+    console.error("fetchThresholds failed:", error);
+    throw error;
   }
 }
 
@@ -83,16 +81,15 @@ export async function saveThresholds(changes) {
   }
 }
 
-/** 恢复出厂默认阈值(服务端持久化)。接口未就绪时仅在前端本地恢复。 */
+/** 恢复出厂默认阈值(服务端持久化)。 */
 export async function resetThresholdsToDefault() {
   try {
-    const success = await httpPost(`${API_PREFIX}/resetDefault`);
-    return success ? JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS)) : null;
+    const data = await httpPost(`${API_PREFIX}/resetDefault`);
+    return data || {};
   } catch (error) {
-    console.warn("resetThresholdsToDefault failed, fallback to local reset:", error);
-    return JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));
+    console.error("resetThresholdsToDefault failed:", error);
+    throw error;
   }
 }
 
-export { DEFAULT_THRESHOLDS };
 export { THRESHOLD_RULE_META, AFFECTED_COUNT, FUNC_LIST, RULE_LIST } from "./threshold-matrix-data.js";

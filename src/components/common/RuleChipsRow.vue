@@ -3,12 +3,16 @@
    RuleChipsRow · 命中规则代码徽章条
    小徽章横排,C/D/S 分色,悬停显示规则名。
    ═══════════════════════════════════════════════════════════════ */
-import { computed } from "vue";
-import { RULE_NAME_BY_CODE } from "../../data/rules-meta-static.js";
+import { computed, onMounted } from "vue";
+import { ruleNameMapRef, initRuleMetaMap } from "../../data/rules-api.js";
 
 const props = defineProps({
   rules: { type: Array, default: () => [] },
   maxShow: { type: Number, default: 8 },
+});
+
+onMounted(() => {
+  initRuleMetaMap();
 });
 
 const seriesOf = (code) => (code.startsWith("C") ? "C" : code.startsWith("D") ? "D" : "S");
@@ -25,7 +29,7 @@ const overflow = computed(() => props.rules.length - shown.value.length);
       :key="i"
       class="rule-chip"
       :class="`series-${seriesOf(code)}`"
-      :title="RULE_NAME_BY_CODE[code] || code"
+      :title="ruleNameMapRef[code] || code"
     >
       {{ code }}
     </span>

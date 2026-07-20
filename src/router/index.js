@@ -6,7 +6,6 @@ const routes = [
   { path: "/rules", name: "rules-list", component: () => import("../views/rules/RulesListPage.vue") },
   { path: "/rules/new", name: "rules-create", component: () => import("../views/rules/RuleCreatePage.vue") },
   { path: "/rules/:id", name: "rules-detail", component: () => import("../views/rules/RuleDetailPage.vue") },
-
   { path: "/params", name: "params", component: () => import("../views/params/ThresholdMatrixPage.vue") },
 
   { path: "/result", name: "result-list", component: () => import("../views/result/BuildingListPage.vue") },

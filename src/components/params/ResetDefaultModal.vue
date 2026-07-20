@@ -9,7 +9,7 @@ const emit = defineEmits(["confirm", "cancel"]);
 
 <template>
   <div class="modal-overlay" @click="emit('cancel')">
-    <div class="modal-card float-in modal-sm" @click.stop>
+    <div class="modal-card float-in modal-confirm" @click.stop>
       <div class="modal-head">
         <div class="modal-title-row">
           <Icon name="alert" :size="18" stroke="var(--danger)" />

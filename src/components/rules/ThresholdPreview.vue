@@ -2,16 +2,31 @@
 /* ═══════════════════════════════════════════════════════════════
    ThresholdPreview · D 系规则的业态阈值预览
    ═══════════════════════════════════════════════════════════════ */
-import { computed } from "vue";
+import { ref, watch, computed, onMounted } from "vue";
 import Icon from "../icons/Icon.vue";
-import { THRESHOLD_MAP, FUNC_MAP } from "../../data/rules-api.js";
+import { fetchThresholdMap, FUNC_MAP } from "../../data/rules-api.js";
 
 const props = defineProps({
   ruleCode: { type: String, required: true },
 });
 const emit = defineEmits(["jump-to-matrix"]);
 
-const config = computed(() => THRESHOLD_MAP[props.ruleCode]);
+const config = ref(null);
+
+const loadThresholdData = async () => {
+  if (!props.ruleCode) return;
+  const map = await fetchThresholdMap();
+  config.value = map[props.ruleCode] || null;
+};
+
+onMounted(() => {
+  loadThresholdData();
+});
+
+watch(() => props.ruleCode, () => {
+  loadThresholdData();
+});
+
 const entries = computed(() => (config.value ? Object.entries(config.value.values) : []));
 </script>
 

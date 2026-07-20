@@ -64,11 +64,11 @@ const genNodeCoverage = (bld) => {
 
 const RULE_VALUE_MEANING = {
   "C01": [
-    { key:"V1", name:"分离度",     unit:"%",  triggeredWhen:"gte", threshold:"15", desc:"两簇中心距离占均值比" },
-    { key:"V2", name:"轮廓系数",   unit:"",   triggeredWhen:"gte", threshold:"0.5", desc:"聚类清晰度评分" },
-    { key:"V3", name:"低簇均值",   unit:"kW", desc:"低工况平均电耗" },
-    { key:"V4", name:"高簇均值",   unit:"kW", desc:"高工况平均电耗" },
-    { key:"V5", name:"簇间距离",   unit:"kW", desc:"两簇中心距离" },
+    { key:"V1", name:"数据1",     unit:"%",  triggeredWhen:"gte", threshold:"15", desc:"两簇中心距离占均值比" },
+    { key:"V2", name:"数据2",   unit:"",   triggeredWhen:"gte", threshold:"0.5", desc:"聚类清晰度评分" },
+    { key:"V3", name:"数据3",   unit:"kW", desc:"低工况平均电耗" },
+    { key:"V4", name:"数据4",   unit:"kW", desc:"高工况平均电耗" },
+    { key:"V5", name:"数据5",   unit:"kW", desc:"两簇中心距离" },
     { key:"V6", name:"低簇样本数", unit:"h",  desc:"归入低工况簇的小时数" },
     { key:"V7", name:"高簇样本数", unit:"h",  desc:"归入高工况簇的小时数" },
     { key:"V8", name:"温度带宽",   unit:"℃", desc:"聚类使用的干球温度范围宽度" },

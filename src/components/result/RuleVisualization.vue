@@ -17,6 +17,7 @@ import {
 const props = defineProps({
   rule: { type: Object, required: true }, // { code, name, chartType, data }
   contextOverride: { type: Object, default: null }, // { buildId, name }
+  windowLabelOverride: { type: String, default: "" },
 });
 
 const viewMode = ref("chart"); // "chart" | "data"
@@ -63,7 +64,7 @@ const displayBuildName = computed(() => props.contextOverride?.name || props.rul
           <span>· {{ displayBuildName }}</span>
           <span class="chart-sub-sep">·</span>
           <Icon name="target" :size="11" stroke="var(--text-2)" />
-          <span>{{ rule.data.windowLabel }}</span>
+          <span>{{ windowLabelOverride || rule.data.windowLabel }}</span>
         </div>
       </div>
       <div class="viz-chart-actions">

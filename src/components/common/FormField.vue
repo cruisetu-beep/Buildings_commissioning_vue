@@ -11,11 +11,12 @@ defineProps({
   readOnly: { type: Boolean, default: false },
   fullWidth: { type: Boolean, default: false },
   changed: { type: Boolean, default: false },
+  error: { type: String, default: "" },
 });
 </script>
 
 <template>
-  <div class="form-field" :class="{ full: fullWidth, readonly: readOnly, changed }">
+  <div class="form-field" :class="{ full: fullWidth, readonly: readOnly, changed, 'has-error': error }">
     <div class="form-field-head">
       <label class="form-label">
         {{ label }}
@@ -27,6 +28,13 @@ defineProps({
       </label>
       <div v-if="hint" class="form-hint">{{ hint }}</div>
     </div>
-    <div class="form-field-body"><slot /></div>
+    <div class="form-field-body">
+      <slot />
+      <!-- 表单项错误提示 -->
+      <div v-if="error" class="form-field-error-text">
+        <Icon name="alert" :size="11" stroke="var(--danger)" />
+        <span>{{ error }}</span>
+      </div>
+    </div>
   </div>
 </template>

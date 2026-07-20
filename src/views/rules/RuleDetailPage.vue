@@ -37,7 +37,24 @@ const form = reactive({});
 const saved = ref(false);
 const savedFields = ref([]);
 
+const toast = ref({
+  show: false,
+  message: "",
+  type: "info"
+});
+
+const showToast = (msg, type = "info") => {
+  toast.value.message = msg;
+  toast.value.type = type;
+  toast.value.show = true;
+  setTimeout(() => {
+    toast.value.show = false;
+  }, 3000);
+};
+
 function initForm() {
+  console.log("Debug initForm: category =", rule.value.category);
+  console.log("Debug initForm: rule.value =", JSON.stringify(rule.value));
   initial.value = {
     name: rule.value.name,
     priority: rule.value.priority,
@@ -48,6 +65,9 @@ function initForm() {
     thresholdDesc: THRESHOLD_MAP[rule.value.ruleCode]
       ? `${THRESHOLD_MAP[rule.value.ruleCode].unit}(按 12 业态差异化)`
       : rule.value.brief,
+    category: rule.value.category,
+    nodeReq: rule.value.nodeReq || "",
+    nodePriority: rule.value.nodePriority || ""
   };
   Object.assign(form, initial.value);
 }
@@ -82,7 +102,7 @@ const onCancel = () => {
 const onBack = () => router.push("/rules");
 
 const onJumpToMatrix = () => {
-  alert("阈值矩阵(2.1)将在下一个页面实现");
+  router.push("/params");
 };
 </script>
 
@@ -179,8 +199,14 @@ const onJumpToMatrix = () => {
         <FormField label="规则系列" read-only>
           <div class="ro-value"><SeriesTag :series="rule.series" /></div>
         </FormField>
-        <FormField label="设备类别" read-only>
-          <div class="ro-value"><CategoryChip :category="rule.category" /></div>
+        <FormField label="设备类别" required :changed="isFieldChanged('category')">
+          <select class="form-input" v-model="form.category" :disabled="isSeriesLocked">
+            <option value="通用">通用</option>
+            <option value="冷水系统">冷水系统</option>
+            <option value="AHU">AHU</option>
+            <option value="冷却塔">冷却塔</option>
+            <option value="采暖">采暖</option>
+          </select>
         </FormField>
 
         <FormField label="规则名称" required :changed="isFieldChanged('name')" full-width>
@@ -273,17 +299,17 @@ const onJumpToMatrix = () => {
         </FormField>
 
         <FormField
-          label="所需计量节点" read-only full-width
-          hint="节点要求由数据源约束,不可修改。变更请提交系统调整申请"
+          label="所需计量节点" full-width :changed="isFieldChanged('nodeReq')"
+          hint="配置执行计算所需绑定的计量节点类型，以逗号分隔"
         >
-          <div class="ro-value ro-value-block mono">{{ rule.nodeReq }}</div>
+          <input class="form-input mono" v-model="form.nodeReq" :disabled="isSeriesLocked" />
         </FormField>
 
         <FormField
-          label="节点优先级" read-only full-width
+          label="节点优先级" full-width :changed="isFieldChanged('nodePriority')"
           hint="匹配计量节点的先后顺序权重，以 > 分隔"
         >
-          <div class="ro-value ro-value-block mono">{{ rule.nodePriority }}</div>
+          <input class="form-input mono" v-model="form.nodePriority" :disabled="isSeriesLocked" />
         </FormField>
       </div>
     </div>
@@ -327,6 +353,18 @@ const onJumpToMatrix = () => {
     <div class="card glow" style="padding: 60px; text-align: center; color: var(--text-2)">
       未找到该规则(ID: {{ route.params.id }})
     </div>
+  </div>
+
+  <!-- ─── Toast 提示组件 ─── -->
+  <div v-if="toast.show" class="edit-toast float-in" :class="toast.type">
+    <Icon :name="toast.type === 'error' ? 'alert' : 'check'" :size="16" :stroke="toast.type === 'error' ? 'var(--danger)' : 'var(--brand)'" />
+    <div style="flex: 1;">
+      <div style="font-weight: 500; font-size: 13.5px; color: var(--text-0);">提示</div>
+      <div class="toast-sub">{{ toast.message }}</div>
+    </div>
+    <button class="toast-close" @click="toast.show = false">
+      <Icon name="x" :size="12" />
+    </button>
   </div>
 </template>
 

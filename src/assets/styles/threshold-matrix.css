@@ -26,11 +26,13 @@
 
       /* ─── 顶部动作条 ─── */
       .matrix-action-bar {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 12px 16px; margin-bottom: 14px;
-        background: white; border: 1px solid var(--line);
-        border-radius: 10px;
-        gap: 12px;
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 0 16px; margin-bottom: 14px;
+          background: white; border: 1px solid var(--line);
+          border-radius: 10px;
+          gap: 12px;
+          height: 56px;
+          box-sizing: border-box;
       }
       .mab-mode-tip {
         display: flex; align-items: center; gap: 8px;

@@ -2,7 +2,7 @@
 /* ═══════════════════════════════════════════════════════════════
    ThresholdMatrixPage · 页面 2.1 业态阈值矩阵
    ═══════════════════════════════════════════════════════════════ */
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import Breadcrumb from "../../components/layout/Breadcrumb.vue";
 import Icon from "../../components/icons/Icon.vue";
 import MatrixCell from "../../components/params/MatrixCell.vue";
@@ -25,6 +25,10 @@ const thresholds = ref({});
 const baseline = ref({}); // 当前"已保存"的基准值(用于判定 changed / 撤销)
 const loading = ref(true);
 
+const dRuleCount = computed(() => {
+  return Object.keys(thresholds.value || {}).length;
+});
+
 const showSaveModal = ref(false);
 const showResetModal = ref(false);
 const savedFlash = ref(false);
@@ -36,6 +40,21 @@ onMounted(async () => {
   thresholds.value = data;
   baseline.value = JSON.parse(JSON.stringify(data));
   loading.value = false;
+});
+
+watch([showSaveModal, showResetModal], ([saveOpen, resetOpen]) => {
+  if (saveOpen || resetOpen) {
+    document.body.classList.add("modal-open");
+    document.documentElement.classList.add("modal-open");
+  } else {
+    document.body.classList.remove("modal-open");
+    document.documentElement.classList.remove("modal-open");
+  }
+});
+
+onUnmounted(() => {
+  document.body.classList.remove("modal-open");
+  document.documentElement.classList.remove("modal-open");
 });
 
 // 计算所有修改项
@@ -112,9 +131,12 @@ const doSave = async () => {
 // 恢复默认
 const doResetDefault = async () => {
   showResetModal.value = false;
-  const def = await resetThresholdsToDefault();
-  thresholds.value = def;
-  baseline.value = JSON.parse(JSON.stringify(def));
+  const success = await resetThresholdsToDefault();
+  if (success) {
+    const data = await fetchThresholds();
+    thresholds.value = data;
+    baseline.value = JSON.parse(JSON.stringify(data));
+  }
 };
 
 // 切换编辑模式:如果有未保存变更,提示
@@ -144,10 +166,8 @@ const onJumpToMatrix = () => {
           <Icon name="sliders" :size="22" stroke="var(--brand)" />
           业态阈值矩阵
         </h1>
-        <div class="page-subtitle">
-          <b>D 系 5 条规则</b>在 <b>11 个业态</b>下的差异化阈值配置。修改后<b>立即生效</b>,
-          下次判定计算采用新值,历史判定结果不受影响。数据源
-          <code class="inline-code mono">T_ST_CxRuleFuncThreshold</code>。
+        <div class="page-subtitle" style="max-width: none;">
+          <b>D 系 {{ dRuleCount }} 条规则</b>在 <b>11 个业态</b>下的差异化阈值配置。修改后<b>立即生效</b>，下次判定计算采用新值，历史判定结果不受影响。数据源 <code class="inline-code mono">T_ST_CxRuleFuncThreshold</code>。
         </div>
       </div>
       <div class="page-head-actions">
@@ -185,13 +205,13 @@ const onJumpToMatrix = () => {
           <Icon name="alert" :size="11" stroke="var(--danger)" />
           <span>校验失败</span>
         </span>
-        <button class="btn ghost sm" :disabled="!editMode" @click="showResetModal = true">
+        <button v-if="editMode" class="btn ghost sm" @click="showResetModal = true">
           <Icon name="x" :size="12" /> 恢复默认
         </button>
-        <button class="btn ghost sm" :disabled="!isDirty" @click="undoChanges">
+        <button v-if="editMode" class="btn ghost sm" :disabled="!isDirty" @click="undoChanges">
           <Icon name="chevron-l" :size="12" /> 撤销全部
         </button>
-        <button class="btn primary sm" :disabled="!isDirty || hasInvalid" @click="openSaveModal">
+        <button v-if="editMode" class="btn primary sm" :disabled="!isDirty || hasInvalid" @click="openSaveModal">
           <Icon name="check" :size="13" /> 保存变更
         </button>
       </div>
@@ -296,16 +316,20 @@ const onJumpToMatrix = () => {
     </div>
 
     <!-- 弹窗 -->
-    <SaveConfirmModal
-      v-if="showSaveModal"
-      :changes="changes"
-      @confirm="doSave"
-      @cancel="showSaveModal = false"
-    />
-    <ResetDefaultModal
-      v-if="showResetModal"
-      @confirm="doResetDefault"
-      @cancel="showResetModal = false"
-    />
+    <Teleport to="body">
+      <SaveConfirmModal
+        v-if="showSaveModal"
+        :changes="changes"
+        @confirm="doSave"
+        @cancel="showSaveModal = false"
+      />
+    </Teleport>
+    <Teleport to="body">
+      <ResetDefaultModal
+        v-if="showResetModal"
+        @confirm="doResetDefault"
+        @cancel="showResetModal = false"
+      />
+    </Teleport>
   </div>
 </template>

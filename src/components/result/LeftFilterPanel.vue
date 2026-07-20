@@ -2,10 +2,10 @@
 /* ═══════════════════════════════════════════════════════════════
    LeftFilterPanel · 左侧筛选面板
    ═══════════════════════════════════════════════════════════════ */
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import Icon from "../icons/Icon.vue";
 import { FUNC_MAP } from "../../data/func-map.js";
-import { RULES_META_STATIC } from "../../data/rules-meta-static.js";
+import { fetchRules, ruleNameMapRef, initRuleMetaMap } from "../../data/rules-api.js";
 
 const emit = defineEmits(["reset"]);
 const filters = defineModel({ required: true }); // { funcs, hitMin, hitMax, archives, rules }
@@ -18,13 +18,39 @@ const toggleFunc = (code) => {
     : [...filters.value.funcs, code];
 };
 
-/* ─── 命中具体规则(34条:C系列8 + D系列5 + S系列21,按业态分组) ─── */
-const cCodes = RULES_META_STATIC.filter((r) => r.series === "C").map((r) => r.ruleCode);
-const dCodes = RULES_META_STATIC.filter((r) => r.series === "D").map((r) => r.ruleCode);
-const sGroups = (() => {
+const toggleSelectAllFuncs = () => {
+  const allCodes = funcEntries.map(([code]) => code);
+  const allSelected = allCodes.every((code) => filters.value.funcs.includes(code));
+  filters.value.funcs = allSelected ? [] : allCodes;
+};
+
+/* ─── 命中具体规则(对接后端数据库，动态从接口获取) ─── */
+const rulesList = ref([]);
+
+onMounted(async () => {
+  rulesList.value = await fetchRules();
+  initRuleMetaMap();
+});
+
+const cCodes = computed(() => {
+  return rulesList.value
+    .filter((r) => r.ruleCode && r.ruleCode.startsWith("C"))
+    .map((r) => r.ruleCode);
+});
+
+const dCodes = computed(() => {
+  return rulesList.value
+    .filter((r) => r.ruleCode && r.ruleCode.startsWith("D"))
+    .map((r) => r.ruleCode);
+});
+
+const sGroups = computed(() => {
   const groups = [];
   const index = {};
-  RULES_META_STATIC.filter((r) => r.series === "S").forEach((r) => {
+  const sRules = rulesList.value.filter(
+    (r) => r.ruleCode && !r.ruleCode.startsWith("C") && !r.ruleCode.startsWith("D")
+  );
+  sRules.forEach((r) => {
     const func = r.ruleCode.split("-")[0];
     if (!(func in index)) {
       index[func] = groups.length;
@@ -33,8 +59,9 @@ const sGroups = (() => {
     groups[index[func]].codes.push(r.ruleCode);
   });
   return groups;
-})();
-const sCodes = sGroups.flatMap((g) => g.codes);
+});
+
+const sCodes = computed(() => sGroups.value.flatMap((g) => g.codes));
 
 const sExpanded = ref(false);
 
@@ -45,10 +72,11 @@ const toggleRule = (code) => {
 };
 
 const selectAllInSeries = (codes) => {
-  const allSelected = codes.every((c) => filters.value.rules.includes(c));
+  const arr = Array.isArray(codes) ? codes : (codes.value || []);
+  const allSelected = arr.every((c) => filters.value.rules.includes(c));
   filters.value.rules = allSelected
-    ? filters.value.rules.filter((c) => !codes.includes(c))
-    : [...new Set([...filters.value.rules, ...codes])];
+    ? filters.value.rules.filter((c) => !arr.includes(c))
+    : [...new Set([...filters.value.rules, ...arr])];
 };
 
 const activeCount = computed(() => filters.value.funcs.length + filters.value.rules.length);
@@ -70,8 +98,11 @@ const activeCount = computed(() => filters.value.funcs.length + filters.value.ru
     <!-- 业态多选 -->
     <div class="lfp-group">
       <div class="lfp-group-label">
-        <span>业态编码</span>
-        <span class="lfp-group-hint mono">{{ filters.funcs.length || "全选" }}</span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span>业态编码</span>
+          <button class="rf-select-all" @click="toggleSelectAllFuncs">全选</button>
+        </div>
+        <span class="lfp-group-hint mono" v-if="filters.funcs.length">{{ filters.funcs.length }}</span>
       </div>
       <div class="func-check-grid">
         <label
@@ -91,7 +122,7 @@ const activeCount = computed(() => filters.value.funcs.length + filters.value.ru
     <div class="lfp-group">
       <div class="lfp-group-label">
         <span>命中具体规则</span>
-        <span class="lfp-group-hint mono">{{ filters.rules.length || "全选" }}</span>
+        <span class="lfp-group-hint mono" v-if="filters.rules.length">{{ filters.rules.length }}</span>
       </div>
 
       <div class="rf-series-row">
@@ -105,6 +136,7 @@ const activeCount = computed(() => filters.value.funcs.length + filters.value.ru
           class="rf-chip series-c"
           :class="{ on: filters.rules.includes(code) }"
           @click="toggleRule(code)"
+          :title="ruleNameMapRef[code] || code"
         >{{ code }}</button>
       </div>
 
@@ -119,6 +151,7 @@ const activeCount = computed(() => filters.value.funcs.length + filters.value.ru
           class="rf-chip series-d"
           :class="{ on: filters.rules.includes(code) }"
           @click="toggleRule(code)"
+          :title="ruleNameMapRef[code] || code"
         >{{ code }}</button>
       </div>
 
@@ -140,6 +173,7 @@ const activeCount = computed(() => filters.value.funcs.length + filters.value.ru
               class="rf-chip series-s"
               :class="{ on: filters.rules.includes(code) }"
               @click="toggleRule(code)"
+              :title="ruleNameMapRef[code] || code"
             >{{ code }}</button>
           </div>
         </div>

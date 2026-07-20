@@ -55,7 +55,10 @@ const w = computed(() => props.result?.windows?.[windowIdx.value]);
         :size="14"
         :stroke="result.category === '目标调适' ? 'var(--warn)' : 'var(--brand)'"
       />
-      <div>{{ result.detailResult }}</div>
+      <div class="rd-conclusion-text">
+        <span>{{ result.detailResult }}</span>
+        <span v-if="result.thresholdValue" class="rd-conclusion-threshold-text"> · {{ result.thresholdValue }}</span>
+      </div>
     </div>
 
     <!-- 窗口明细(若有窗口) -->

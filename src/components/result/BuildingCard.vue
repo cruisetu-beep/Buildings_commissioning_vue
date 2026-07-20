@@ -5,12 +5,17 @@
    避免影响建筑详情页(BuildingDetailPage / BuildingInfoPanel)对
    这些共享组件的复用。
    ═══════════════════════════════════════════════════════════════ */
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
+import { ruleNameMapRef, initRuleMetaMap } from "../../data/rules-api.js";
 
 const props = defineProps({
   building: { type: Object, required: true },
 });
 defineEmits(["click"]);
+
+onMounted(() => {
+  initRuleMetaMap();
+});
 
 const dimmed = computed(() => props.building.category === "无节点" || props.building.category === "无数据");
 
@@ -98,7 +103,12 @@ function ruleClass(code) {
     <div class="sec-title">命中规则</div>
     <div class="rules">
       <span v-if="building.hitRules.length === 0" class="rules-empty">— 无命中规则</span>
-      <span v-for="code in building.hitRules" :key="code" :class="ruleClass(code)">{{ code }}</span>
+      <span
+        v-for="code in building.hitRules"
+        :key="code"
+        :class="ruleClass(code)"
+        :title="ruleNameMapRef[code] || code"
+      >{{ code }}</span>
     </div>
 
     <div class="divider b" />

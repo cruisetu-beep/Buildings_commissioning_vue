@@ -12,7 +12,7 @@ import RuleDetailArea from "../../components/result/RuleDetailArea.vue";
 import BuildingInfoPanel from "../../components/result/BuildingInfoPanel.vue";
 import RuleVizModal from "../../components/result/RuleVizModal.vue";
 import { fetchBuildingById } from "../../data/buildings-api.js";
-import { genBuildingRuleResults, genNodeCoverage } from "../../data/building-detail-data.js";
+import { initRuleMetaMap } from "../../data/rules-api.js";
 
 import "../../assets/styles/building-detail.css";
 
@@ -30,14 +30,19 @@ const activeCode = ref(null);
 const vizModalCode = ref(null);
 
 onMounted(async () => {
-  building.value = await fetchBuildingById(route.params.id);
-  loading.value = false;
-  if (building.value) {
-    results.value = genBuildingRuleResults(building.value);
-    nodes.value = genNodeCoverage(building.value);
+  await initRuleMetaMap(); // 确保首先拉取了规则列表以供同步解析
+  const data = await fetchBuildingById(route.params.id);
+  if (data) {
+    building.value = data.building;
+    results.value = data.results;
+    nodes.value = data.nodes;
+
     const target = results.value.find((r) => r.category === "目标调适");
-    activeCode.value = target ? target.ruleCode : (results.value.find((r) => r.validCount > 0) || results.value[0])?.ruleCode;
+    activeCode.value = target
+            ? target.ruleCode
+            : (results.value.find((r) => r.validCount > 0) || results.value[0])?.ruleCode;
   }
+  loading.value = false;
 });
 
 const activeResult = computed(() => results.value.find((r) => r.ruleCode === activeCode.value));
@@ -59,7 +64,7 @@ const handleJumpToViz = (ruleCode) => {
     <div class="bd-head">
       <button class="bd-back-btn" title="返回建筑清单" @click="onBack">
         <Icon name="chevron-l" :size="13" />
-        <span>返回</span>
+        <span>返回列表</span>
       </button>
 
       <div class="bd-head-main">
@@ -97,7 +102,11 @@ const handleJumpToViz = (ruleCode) => {
          (class 名沿用旧的 bd-three-col,避免波及既有选择器) -->
     <div class="bd-three-col">
       <div class="bd-left">
-        <BuildingInfoPanel :building="building" :nodes="nodes" />
+        <BuildingInfoPanel
+                :building="building"
+                :nodes="nodes"
+                :active-result="activeResult"
+        />
         <RuleOutlineList :results="results" :active-code="activeCode" @select="(c) => (activeCode = c)" />
       </div>
       <div class="bd-mid card glow">
@@ -110,6 +119,7 @@ const handleJumpToViz = (ruleCode) => {
       v-if="vizModalCode"
       :rule-code="vizModalCode"
       :building="building"
+      :result="activeResult"
       @close="vizModalCode = null"
     />
   </div>

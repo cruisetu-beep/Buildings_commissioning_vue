@@ -65,10 +65,10 @@ const C01_DATA = (() => {
     windowLabel: "1/3 · 2025-07-15 至 07-17", windowIdx: 0,
     low, high, lowMean, highMean,
     metrics: [
-      { label: "分离度", value: "22.3", unit: "%", threshold: "≥ 15%", triggered: true, info: "两簇中心距离占均值比" },
-      { label: "轮廓系数", value: "0.63", unit: "", threshold: "≥ 0.5", triggered: true, info: "聚类清晰度评分" },
-      { label: "低簇均值", value: lowMean.toString(), unit: "kW", info: "低工况平均电耗" },
-      { label: "高簇均值", value: highMean.toString(), unit: "kW", info: "高工况平均电耗" },
+      { label: "数据1", value: "22.3", unit: "%", threshold: "≥ 15%", triggered: true, info: "两簇中心距离占均值比" },
+      { label: "数据2", value: "0.63", unit: "", threshold: "≥ 0.5", triggered: true, info: "聚类清晰度评分" },
+      { label: "数据3", value: lowMean.toString(), unit: "kW", info: "低工况平均电耗" },
+      { label: "数据4", value: highMean.toString(), unit: "kW", info: "高工况平均电耗" },
     ],
     windowInfo: {
       "分析窗口": "2025-07-15 至 2025-07-17",
@@ -80,7 +80,7 @@ const C01_DATA = (() => {
     },
     triggered: true,
     conclusion:
-      "在同温度 ±1℃ 区间内,电耗数据明确分为两簇,分离度 22.3% 超过阈值 15%,轮廓系数 0.63 表明聚类边界清晰。判定为存在高低双工况,推测控制策略存在分层运行或存在冗余机组。",
+      "在同温度 ±1℃ 区间内,电耗数据明确分为两簇,数据1 22.3% 超过阈值 15%,数据2 0.63 表明聚类边界清晰。判定为存在高低双工况,推测控制策略存在分层运行或存在冗余机组。",
   };
 })();
 

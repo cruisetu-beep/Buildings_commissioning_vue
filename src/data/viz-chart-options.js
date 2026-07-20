@@ -74,7 +74,7 @@ export function buildKMeansOption(d) {
       {
         type: "text", right: 45, top: 45,
         style: {
-          text: `分离度 22.3%  ·  轮廓系数 0.63`,
+          text: `数据1 22.3%  ·  数据2 0.63`,
           fontSize: 12, fontWeight: 600, fill: "#d97706",
           fontFamily: '"JetBrains Mono", monospace',
         },

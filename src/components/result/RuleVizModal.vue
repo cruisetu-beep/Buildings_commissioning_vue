@@ -21,6 +21,7 @@ import "../../assets/styles/rule-viz.css";
 const props = defineProps({
   ruleCode: { type: String, required: true },
   building: { type: Object, required: true },
+  result: { type: Object, default: null },
 });
 const emit = defineEmits(["close"]);
 
@@ -28,6 +29,44 @@ const windowIdx = ref(0);
 
 const ruleIdx = computed(() => VIZ_RULES.findIndex((r) => r.code === props.ruleCode));
 const rule = computed(() => (ruleIdx.value >= 0 ? VIZ_RULES[ruleIdx.value] : null));
+
+// 获取当前选中的真实窗口数据
+const activeWindow = computed(() => props.result?.windows?.[windowIdx.value]);
+
+// 动态同步当前的起止日期文本，用于覆盖图表下方的副标题
+const activePeriodStr = computed(() => {
+  const w = activeWindow.value;
+  if (!w) return "";
+  return `${windowIdx.value + 1}/${props.result.windows.length} · ${w.period}`;
+});
+
+// 动态获取 VerdictCard 结论卡片的触发状态与结论文本
+const activeWindowTriggered = computed(() => {
+  return activeWindow.value?.isTriggered ?? (rule.value?.data?.triggered ?? false);
+});
+
+const activeConclusion = computed(() => {
+  return props.result?.detailResult || (rule.value?.data?.conclusion || "");
+});
+
+// 动态获取关键指标数据，优先使用真实接口格式化好的 values 数组
+const activeMetrics = computed(() => {
+  return activeWindow.value?.values || (rule.value?.data?.metrics || []);
+});
+
+// 动态获取窗口气象和基础概览信息
+const activeWindowInfo = computed(() => {
+  const w = activeWindow.value;
+  if (!w) return rule.value?.data?.windowInfo || {};
+  const info = { "分析窗口": w.period };
+  if (w.weather?.drybulb && w.weather.drybulb !== "—") {
+    info["干球均值"] = w.weather.drybulb;
+  }
+  if (w.weather?.wetbulb && w.weather.wetbulb !== "—") {
+    info["湿球均值"] = w.weather.wetbulb;
+  }
+  return info;
+});
 </script>
 
 <template>
@@ -73,14 +112,14 @@ const rule = computed(() => (ruleIdx.value >= 0 ? VIZ_RULES[ruleIdx.value] : nul
           </div>
           <div class="viz-ctx-item">
             <label><Icon name="rules" :size="11" /> 规则</label>
-            <div class="viz-ctx-value mono" :title="`${rule.code} · ${rule.name}`">{{ rule.code }} · {{ rule.name }}</div>
+            <div class="viz-ctx-value mono" :title="`${rule.code} · ${result?.ruleName || rule.name}`">{{ rule.code }} · {{ result?.ruleName || rule.name }}</div>
           </div>
           <div class="viz-ctx-item">
             <label><Icon name="target" :size="11" /> 分析窗口</label>
             <select class="viz-sel-select mono" v-model="windowIdx">
-              <option :value="0">1/3 · {{ rule.data.windowLabel.split("·")[1]?.trim() || "2025-07-15 至 07-17" }}</option>
-              <option :value="1" disabled>2/3 · 2025-07-22 至 07-24(占位)</option>
-              <option :value="2" disabled>3/3 · 2025-07-29 至 07-31(占位)</option>
+              <option v-for="(w, idx) in result?.windows || []" :key="idx" :value="idx">
+                {{ idx + 1 }}/{{ result.windows.length }} · {{ w.period }}
+              </option>
             </select>
           </div>
         </div>
@@ -89,10 +128,14 @@ const rule = computed(() => (ruleIdx.value >= 0 ? VIZ_RULES[ruleIdx.value] : nul
         <div class="viz-modal-body">
           <div class="viz-two-col">
             <div class="viz-left card glow">
-              <RuleVisualization :rule="rule" :context-override="{ buildId: building.buildId, name: building.name }" />
+              <RuleVisualization 
+                :rule="rule" 
+                :context-override="{ buildId: building.buildId, name: building.name }" 
+                :window-label-override="activePeriodStr"
+              />
             </div>
             <div class="viz-right">
-              <VerdictCard :triggered="rule.data.triggered" :conclusion="rule.data.conclusion" :rule-code="rule.code" />
+              <VerdictCard :triggered="rule.data.triggered" :conclusion="result?.judgmentStandard || rule.data.conclusion" :rule-code="rule.code" />
               <MetricsPanel :metrics="rule.data.metrics" />
               <WindowInfoPanel :info="rule.data.windowInfo" />
             </div>

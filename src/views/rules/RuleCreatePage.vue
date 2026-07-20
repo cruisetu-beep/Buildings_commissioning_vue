@@ -2,7 +2,7 @@
 /* ═══════════════════════════════════════════════════════════════
    RuleCreatePage · 页面 1.3 新建规则
    ═══════════════════════════════════════════════════════════════ */
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import Breadcrumb from "../../components/layout/Breadcrumb.vue";
 import Icon from "../../components/icons/Icon.vue";
@@ -35,6 +35,67 @@ const form = reactive({
 const saved = ref(false);
 const savedFields = ref([]);
 
+const toast = ref({
+  show: false,
+  message: "",
+  type: "info"
+});
+
+const showToast = (msg, type = "info") => {
+  toast.value.message = msg;
+  toast.value.type = type;
+  toast.value.show = true;
+  setTimeout(() => {
+    toast.value.show = false;
+  }, 3000);
+};
+
+const errors = reactive({
+  ruleCode: "",
+  name: ""
+});
+
+watch(() => form.name, () => {
+  errors.name = "";
+});
+watch(() => form.ruleCode, () => {
+  errors.ruleCode = "";
+});
+
+const confirmDialog = ref({
+  show: false,
+  title: "放弃编辑提示",
+  message: "确定放弃已填写的内容并返回吗？",
+  onResolve: null
+});
+
+const askConfirm = (msg = "确定要执行此操作吗？", title = "提示") => {
+  return new Promise((resolve) => {
+    confirmDialog.value.title = title;
+    confirmDialog.value.message = msg;
+    confirmDialog.value.show = true;
+    confirmDialog.value.onResolve = (result) => {
+      confirmDialog.value.show = false;
+      resolve(result);
+    };
+  });
+};
+
+watch(() => confirmDialog.value.show, (newVal) => {
+  if (newVal) {
+    document.body.classList.add("modal-open");
+    document.documentElement.classList.add("modal-open");
+  } else {
+    document.body.classList.remove("modal-open");
+    document.documentElement.classList.remove("modal-open");
+  }
+});
+
+onUnmounted(() => {
+  document.body.classList.remove("modal-open");
+  document.documentElement.classList.remove("modal-open");
+});
+
 const computedSeries = computed(() => {
   if (!form.ruleCode) return "C";
   const code = form.ruleCode.trim().toUpperCase();
@@ -49,8 +110,23 @@ const isDirty = computed(() => {
 });
 
 const onSave = async () => {
-  if (!form.ruleCode.trim()) return alert("请输入分类编码");
-  if (!form.name.trim()) return alert("请输入规则名称");
+  errors.ruleCode = "";
+  errors.name = "";
+
+  let hasError = false;
+  if (!form.ruleCode.trim()) {
+    errors.ruleCode = "分类编码为必填项";
+    hasError = true;
+  }
+  if (!form.name.trim()) {
+    errors.name = "规则名称为必填项";
+    hasError = true;
+  }
+
+  if (hasError) {
+    showToast("请修正表单中的错误项", "error");
+    return;
+  }
 
   const payload = {
     ruleCode: form.ruleCode.trim(),
@@ -78,13 +154,14 @@ const onSave = async () => {
       router.push("/rules");
     }, 1500);
   } catch (error) {
-    alert("创建规则失败: " + error.message);
+    showToast("创建规则失败: " + error.message, "error");
   }
 };
 
-const onCancel = () => {
-  if (isDirty.value && !confirm("确定放弃已填写的内容并返回吗？")) {
-    return;
+const onCancel = async () => {
+  if (isDirty.value) {
+    const ok = await askConfirm("确定放弃已填写的内容并返回吗？", "放弃编辑");
+    if (!ok) return;
   }
   router.push("/rules");
 };
@@ -129,7 +206,7 @@ const onCancel = () => {
       </div>
       <div class="form-grid two-col">
 
-        <FormField label="规则名称" required>
+        <FormField label="规则名称" required :error="errors.name">
           <input class="form-input" v-model="form.name" placeholder="请输入规则名称" />
         </FormField>
 
@@ -143,7 +220,7 @@ const onCancel = () => {
           </select>
         </FormField>
 
-        <FormField label="分类编码" required hint="对应计算及手册编码，例如 C09、D06">
+        <FormField label="分类编码" required hint="对应计算及手册编码，例如 C09、D06" :error="errors.ruleCode">
           <input class="form-input mono" v-model="form.ruleCode" placeholder="请输入分类编码，例如 C09" />
         </FormField>
         <FormField label="规则系列" read-only hint="根据分类编码首字母自动判定">
@@ -216,5 +293,44 @@ const onCancel = () => {
         </FormField>
       </div>
     </div>
+    
+    <!-- ─── Toast 提示组件 ─── -->
+    <Teleport to="body">
+      <div v-if="toast.show" class="edit-toast float-in" :class="toast.type">
+        <Icon :name="toast.type === 'error' ? 'alert' : 'check'" :size="16" :stroke="toast.type === 'error' ? 'var(--danger)' : 'var(--brand)'" />
+        <div style="flex: 1;">
+          <div style="font-weight: 500; font-size: 13.5px; color: var(--text-0);">{{ toast.type === 'error' ? '验证未通过' : '提示' }}</div>
+          <div class="toast-sub">{{ toast.message }}</div>
+        </div>
+        <button class="toast-close" @click="toast.show = false">
+          <Icon name="x" :size="12" />
+        </button>
+      </div>
+    </Teleport>
+
+    <!-- ─── 自定义 Confirm 模态弹框 ─── -->
+    <Teleport to="body">
+      <div v-if="confirmDialog.show" class="modal-overlay" @click="confirmDialog.onResolve(false)">
+        <div class="modal-card modal-confirm float-in" @click.stop>
+          <div class="modal-head">
+            <div class="modal-title-row">
+              <Icon name="alert" :size="18" stroke="var(--danger)" />
+              <div>
+                <h3 class="modal-title">{{ confirmDialog.title }}</h3>
+                <div class="modal-sub">
+                  {{ confirmDialog.message }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-foot">
+            <button class="btn ghost" @click="confirmDialog.onResolve(false)">取消</button>
+            <button class="btn danger" @click="confirmDialog.onResolve(true)">
+              确定
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
