@@ -2,7 +2,8 @@
 /* ═══════════════════════════════════════════════════════════════
    RuleVizModal · 从 4.3 建筑详情页弹出的算法可视化
    复用 4 个内层组件:RuleVisualization / VerdictCard / MetricsPanel / WindowInfoPanel
-   建筑 + 规则 只读上下文,分析窗口可切(mock 里只 1/3 有数据)。
+   建筑 + 规则 只读上下文,分析窗口可切。图表与右栏均由该规则各窗口的
+   resultJSON 驱动(v4 mock,后端 CalcResult 接口就绪后仅换取数来源)。
 
    必须用 <Teleport to="body"> 包裹:4.3 页(.page-view)有 .float-in 淡入动画,
    动画 fill-mode:both 让 transform 值永久留在元素上,祖先有非 none 的 transform
@@ -14,7 +15,7 @@ import RuleVisualization from "./RuleVisualization.vue";
 import VerdictCard from "./VerdictCard.vue";
 import MetricsPanel from "./MetricsPanel.vue";
 import WindowInfoPanel from "./WindowInfoPanel.vue";
-import { VIZ_RULES } from "../../data/viz-data.js";
+import { getVizRule, VIZ_TYPE_LABEL } from "../../data/viz-data.js";
 
 import "../../assets/styles/rule-viz.css";
 
@@ -27,59 +28,36 @@ const emit = defineEmits(["close"]);
 
 const windowIdx = ref(0);
 
-const ruleIdx = computed(() => VIZ_RULES.findIndex((r) => r.code === props.ruleCode));
-const rule = computed(() => (ruleIdx.value >= 0 ? VIZ_RULES[ruleIdx.value] : null));
+const rule = computed(() => getVizRule(props.ruleCode));
+const windows = computed(() => rule.value?.windows || []);
+const activeWindow = computed(() => windows.value[windowIdx.value] || null);
+const rj = computed(() => activeWindow.value?.resultJSON || null);
 
-// 获取当前选中的真实窗口数据
-const activeWindow = computed(() => props.result?.windows?.[windowIdx.value]);
-
-// 动态同步当前的起止日期文本，用于覆盖图表下方的副标题
+const displayName = computed(() => props.result?.ruleName || rule.value?.name || "");
 const activePeriodStr = computed(() => {
   const w = activeWindow.value;
   if (!w) return "";
-  return `${windowIdx.value + 1}/${props.result.windows.length} · ${w.period}`;
+  return `${windowIdx.value + 1}/${windows.value.length} · ${w.period}`;
 });
 
-// 动态获取 VerdictCard 结论卡片的触发状态与结论文本
-const activeWindowTriggered = computed(() => {
-  return activeWindow.value?.isTriggered ?? (rule.value?.data?.triggered ?? false);
-});
-
-const activeConclusion = computed(() => {
-  return props.result?.detailResult || (rule.value?.data?.conclusion || "");
-});
-
-// 动态获取关键指标数据，优先使用真实接口格式化好的 values 数组
-const activeMetrics = computed(() => {
-  return activeWindow.value?.values || (rule.value?.data?.metrics || []);
-});
-
-// 动态获取窗口气象和基础概览信息
-const activeWindowInfo = computed(() => {
-  const w = activeWindow.value;
-  if (!w) return rule.value?.data?.windowInfo || {};
-  const info = { "分析窗口": w.period };
-  if (w.weather?.drybulb && w.weather.drybulb !== "—") {
-    info["干球均值"] = w.weather.drybulb;
-  }
-  if (w.weather?.wetbulb && w.weather.wetbulb !== "—") {
-    info["湿球均值"] = w.weather.wetbulb;
-  }
-  return info;
-});
+// 右栏三面板均取自当前窗口 resultJSON
+const triggered = computed(() => rj.value?.category === "目标调适");
+const conclusion = computed(() => rj.value?.reason || "");
+const metrics = computed(() => rj.value?.metrics || []);
+const windowInfo = computed(() => rj.value?.windowInfo || {});
 </script>
 
 <template>
   <Teleport to="body">
-    <!-- 未实现的规则兜底(RuleDetailArea 已用 hasChart 拦截,这里只是防御) -->
+    <!-- 无 viz 数据兜底(RuleDetailArea 已用 hasVizChart 拦截,这里只是防御) -->
     <div v-if="!rule" class="modal-overlay" @click="emit('close')">
       <div class="modal-card float-in modal-sm" @click.stop>
         <div class="modal-head">
           <div class="modal-title-row">
             <Icon name="lock" :size="18" stroke="var(--text-3)" />
             <div>
-              <h3 class="modal-title">该规则的可视化待第二批实现</h3>
-              <div class="modal-sub">第一批仅覆盖 <b class="mono">C01 · D01 · D02 · C04</b></div>
+              <h3 class="modal-title">该规则的计算过程可视化待接入</h3>
+              <div class="modal-sub">规则 <b class="mono">{{ ruleCode }}</b> 的计算过程数据尚未提供</div>
             </div>
           </div>
         </div>
@@ -96,6 +74,7 @@ const activeWindowInfo = computed(() => {
           <div class="viz-modal-title-row">
             <Icon name="flask" :size="16" stroke="var(--brand)" />
             <h3 class="modal-title">规则算法可视化</h3>
+            <span class="viz-type-badge mono">{{ rule.visualType }} · {{ VIZ_TYPE_LABEL[rule.visualType] }}</span>
           </div>
           <button class="viz-modal-close" title="关闭" @click="emit('close')">
             <Icon name="x" :size="14" />
@@ -112,13 +91,13 @@ const activeWindowInfo = computed(() => {
           </div>
           <div class="viz-ctx-item">
             <label><Icon name="rules" :size="11" /> 规则</label>
-            <div class="viz-ctx-value mono" :title="`${rule.code} · ${result?.ruleName || rule.name}`">{{ rule.code }} · {{ result?.ruleName || rule.name }}</div>
+            <div class="viz-ctx-value mono" :title="`${rule.code} · ${displayName}`">{{ rule.code }} · {{ displayName }}</div>
           </div>
           <div class="viz-ctx-item">
             <label><Icon name="target" :size="11" /> 分析窗口</label>
             <select class="viz-sel-select mono" v-model="windowIdx">
-              <option v-for="(w, idx) in result?.windows || []" :key="idx" :value="idx">
-                {{ idx + 1 }}/{{ result.windows.length }} · {{ w.period }}
+              <option v-for="(w, idx) in windows" :key="idx" :value="idx">
+                {{ idx + 1 }}/{{ windows.length }} · {{ w.period }}
               </option>
             </select>
           </div>
@@ -128,16 +107,20 @@ const activeWindowInfo = computed(() => {
         <div class="viz-modal-body">
           <div class="viz-two-col">
             <div class="viz-left card glow">
-              <RuleVisualization 
-                :rule="rule" 
-                :context-override="{ buildId: building.buildId, name: building.name }" 
-                :window-label-override="activePeriodStr"
+              <RuleVisualization
+                :rule-code="rule.code"
+                :rule-name="displayName"
+                :visual-type="rule.visualType"
+                :chart="rj?.chart || {}"
+                :build-id="building.buildId"
+                :building-name="building.name"
+                :window-label="activePeriodStr"
               />
             </div>
             <div class="viz-right">
-              <VerdictCard :triggered="rule.data.triggered" :conclusion="result?.judgmentStandard || rule.data.conclusion" :rule-code="rule.code" />
-              <MetricsPanel :metrics="rule.data.metrics" />
-              <WindowInfoPanel :info="rule.data.windowInfo" />
+              <VerdictCard :triggered="triggered" :conclusion="conclusion" :rule-code="rule.code" />
+              <MetricsPanel :metrics="metrics" />
+              <WindowInfoPanel :info="windowInfo" />
             </div>
           </div>
         </div>

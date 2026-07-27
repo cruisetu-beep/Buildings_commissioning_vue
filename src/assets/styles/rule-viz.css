@@ -308,6 +308,15 @@
 .viz-modal-title-row .modal-title {
   font-size: 15px;
 }
+.viz-type-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--brand);
+  background: rgba(31, 111, 235, 0.1);
+  border: 1px solid rgba(31, 111, 235, 0.28);
+  white-space: nowrap;
+}
 .viz-modal-close {
   width: 28px; height: 28px;
   display: grid; place-items: center;

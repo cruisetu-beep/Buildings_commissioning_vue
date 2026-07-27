@@ -1,53 +1,33 @@
 <script setup>
 /* ═══════════════════════════════════════════════════════════════
-   RuleVisualization · 根据规则类型分发到对应图表
+   RuleVisualization · 根据可视化类型(visualType)分发到对应图表
    支持"图表视图 / 原始数据视图"切换
    ═══════════════════════════════════════════════════════════════ */
 import { ref, computed, watch } from "vue";
 import Icon from "../icons/Icon.vue";
 import EChartsWidget from "../common/EChartsWidget.vue";
 import RawDataView from "./RawDataView.vue";
-import {
-  buildKMeansOption,
-  buildRegressionOption,
-  buildDualBarOption,
-  buildHistogramOption,
-} from "../../data/viz-chart-options.js";
+import { buildChartOption } from "../../data/viz-chart-options.js";
 
 const props = defineProps({
-  rule: { type: Object, required: true }, // { code, name, chartType, data }
-  contextOverride: { type: Object, default: null }, // { buildId, name }
-  windowLabelOverride: { type: String, default: "" },
+  ruleCode: { type: String, required: true },
+  ruleName: { type: String, default: "" },
+  visualType: { type: String, required: true }, // A/B/C/D/E
+  chart: { type: Object, default: () => ({}) },  // resultJSON.chart
+  buildId: { type: String, default: "" },
+  buildingName: { type: String, default: "" },
+  windowLabel: { type: String, default: "" },
 });
 
 const viewMode = ref("chart"); // "chart" | "data"
 
-const option = computed(() => {
-  switch (props.rule.chartType) {
-    case "kmeans":
-      return buildKMeansOption(props.rule.data);
-    case "regression":
-      return buildRegressionOption(props.rule.data);
-    case "dualbar":
-      return buildDualBarOption(props.rule.data);
-    case "histogram":
-      return buildHistogramOption(props.rule.data);
-    default:
-      return {};
-  }
-});
+const option = computed(() => buildChartOption(props.visualType, props.chart));
 
-// 切换规则时自动回到图表视图
+// 切换规则或窗口时自动回到图表视图
 watch(
-  () => props.rule.code,
-  () => {
-    viewMode.value = "chart";
-  }
+  () => [props.ruleCode, props.windowLabel],
+  () => { viewMode.value = "chart"; }
 );
-
-// 副标题里的建筑上下文:调用方(如 Modal 从 4.3 建筑详情页开)可传 contextOverride 覆盖
-const displayBuildId = computed(() => props.contextOverride?.buildId || props.rule.data.buildId);
-const displayBuildName = computed(() => props.contextOverride?.name || props.rule.data.buildingName);
 </script>
 
 <template>
@@ -55,16 +35,16 @@ const displayBuildName = computed(() => props.contextOverride?.name || props.rul
     <div class="viz-chart-head">
       <div>
         <div class="viz-chart-title">
-          <span class="viz-chart-code mono">{{ rule.code }}</span>
-          <span>{{ rule.name }}</span>
+          <span class="viz-chart-code mono">{{ ruleCode }}</span>
+          <span>{{ ruleName }}</span>
         </div>
         <div class="viz-chart-sub">
           <Icon name="building" :size="11" stroke="var(--text-2)" />
-          <span class="mono">{{ displayBuildId }}</span>
-          <span>· {{ displayBuildName }}</span>
+          <span class="mono">{{ buildId }}</span>
+          <span>· {{ buildingName }}</span>
           <span class="chart-sub-sep">·</span>
           <Icon name="target" :size="11" stroke="var(--text-2)" />
-          <span>{{ windowLabelOverride || rule.data.windowLabel }}</span>
+          <span>{{ windowLabel }}</span>
         </div>
       </div>
       <div class="viz-chart-actions">

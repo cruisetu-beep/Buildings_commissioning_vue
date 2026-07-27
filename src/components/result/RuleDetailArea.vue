@@ -9,6 +9,7 @@ import PriorityChip from "../common/PriorityChip.vue";
 import CategoryStatusChip from "../common/CategoryStatusChip.vue";
 import WindowTabs from "./WindowTabs.vue";
 import ValueRow from "./ValueRow.vue";
+import { hasVizChart } from "../../data/viz-data.js";
 
 const props = defineProps({
   result: { type: Object, default: null },
@@ -33,7 +34,7 @@ const w = computed(() => props.result?.windows?.[windowIdx.value]);
       <div class="rd-head-title">
         <span class="rd-code mono">{{ result.ruleCode }}</span>
         <span class="rd-name">{{ result.ruleName }}</span>
-        <button v-if="result.hasChart" class="rd-viz-btn" @click="emit('jump-to-viz', result.ruleCode)">
+        <button v-if="hasVizChart(result.ruleCode)" class="rd-viz-btn" @click="emit('jump-to-viz', result.ruleCode)">
           <Icon name="flask" :size="13" />
           <span>计算过程</span>
         </button>
