@@ -5,6 +5,8 @@
    (httpGet + /api/ 前缀 + 请求超时)。后端尚未提供本模块接口时,
    自动降级为本地 mock 数据(buildings-data.js),页面仍可正常使用。
    ═══════════════════════════════════════════════════════════════ */
+import { VIZ_RULES } from "./viz-data.js";
+
 const API_PREFIX = "/api/CxRuleResult";
 const REQUEST_TIMEOUT_MS = 8000;
 
@@ -39,6 +41,46 @@ export async function fetchBuildings(params = {}) {
     console.error("fetchBuildings failed:", error);
     return [];
   }
+}
+
+/* ───────────────────────────────────────────────────────────────
+   【演示辅助 · 可随时移除】URL 带 ?allrules=1 时,把当前建筑缺失的
+   viz 规则补进结果大纲,方便一栋楼内逐个查看全部计算过程弹窗。
+   补充行 windows 为空(中间详情区被 v-if 保护,不渲染窗口块),仅用于
+   让规则出现在大纲并露出"计算过程"按钮;弹窗内容全部来自 viz mock。
+   不带该参数时行为完全不变。后端联调完成后可删除本段。
+   ─────────────────────────────────────────────────────────────── */
+function isAllRulesPreview() {
+  try {
+    return new URLSearchParams(window.location.search).has("allrules");
+  } catch {
+    return false;
+  }
+}
+
+function backfillAllVizRules(data) {
+  if (!data) return data;
+  const results = data.results || (data.results = []);
+  const present = new Set(results.map((r) => r.ruleCode));
+  VIZ_RULES.forEach((vr) => {
+    if (present.has(vr.code)) return;
+    const rj = vr.windows?.[0]?.resultJSON;
+    results.push({
+      ruleCode: vr.code,
+      ruleName: vr.name,
+      series: vr.code.includes("-S") ? "S" : vr.code[0],
+      priority: "中",
+      category: rj?.category || "目标调适",
+      validCount: 0,
+      triggerCount: 0,
+      windows: [],
+      modelNodes: [],
+      detailResult: rj?.reason || "",
+      judgmentStandard: "",
+      _vizPreview: true,
+    });
+  });
+  return data;
 }
 
 /** 获取单栋建筑详细诊断判定与窗口明细结果 */
@@ -92,6 +134,10 @@ export async function fetchBuildingById(buildId, year = 2025) {
         data.building.year = data.buildYear ? data.buildYear.toString() : "—";
         data.building.owner = data.buildOwner || "未登记";
       }
+
+      // 【演示辅助】?allrules=1 时补齐全部 viz 规则(见上方说明)
+      if (isAllRulesPreview()) backfillAllVizRules(data);
+
       return data;
     }
   } catch (error) {
