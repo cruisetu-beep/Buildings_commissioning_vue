@@ -31,7 +31,9 @@ const vizModalCode = ref(null);
 
 onMounted(async () => {
   await initRuleMetaMap(); // 确保首先拉取了规则列表以供同步解析
-  const data = await fetchBuildingById(route.params.id);
+  const data = await fetchBuildingById(route.params.id, 2025, {
+    allRules: route.query.allrules != null,
+  });
   if (data) {
     building.value = data.building;
     results.value = data.results;

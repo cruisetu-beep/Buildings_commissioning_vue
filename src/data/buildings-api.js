@@ -62,6 +62,7 @@ function backfillAllVizRules(data) {
   if (!data) return data;
   const results = data.results || (data.results = []);
   const present = new Set(results.map((r) => r.ruleCode));
+  let added = 0;
   VIZ_RULES.forEach((vr) => {
     if (present.has(vr.code)) return;
     const rj = vr.windows?.[0]?.resultJSON;
@@ -79,12 +80,14 @@ function backfillAllVizRules(data) {
       judgmentStandard: "",
       _vizPreview: true,
     });
+    added += 1;
   });
+  console.info(`[allrules] 演示补齐 ${added} 条 viz 规则(当前结果共 ${results.length} 条)`);
   return data;
 }
 
 /** 获取单栋建筑详细诊断判定与窗口明细结果 */
-export async function fetchBuildingById(buildId, year = 2025) {
+export async function fetchBuildingById(buildId, year = 2025, opts = {}) {
   try {
     const data = await httpGet(`${API_PREFIX}/getBuildingDetail`, { buildId, year });
     if (data) {
@@ -136,7 +139,7 @@ export async function fetchBuildingById(buildId, year = 2025) {
       }
 
       // 【演示辅助】?allrules=1 时补齐全部 viz 规则(见上方说明)
-      if (isAllRulesPreview()) backfillAllVizRules(data);
+      if (opts.allRules || isAllRulesPreview()) backfillAllVizRules(data);
 
       return data;
     }
