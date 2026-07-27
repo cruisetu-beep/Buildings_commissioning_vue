@@ -535,6 +535,102 @@ const D04_WINDOWS = [
   })),
 ];
 
+/* ═══════════════════════════════════════════════════════════════
+   E 类 · 作息模式(24h 双折线)· 批次3 · D05 + S 系示例
+   ═══════════════════════════════════════════════════════════════ */
+// 组装一条 schedule resultJSON。residualRate 用小数(0.66 = 66%)。
+const scheduleRJ = ({
+  profileA, profileB, labelA = "工作日", labelB = "节假日",
+  residualRate, threshold, triggered, avgA, avgB, group,
+  residualInfo = "节假日/工作日 日均比", reason, extraInfo,
+}) => {
+  const pct = (residualRate * 100).toFixed(0);
+  const thr = (threshold * 100).toFixed(0);
+  return {
+    visualType: "E",
+    chart: {
+      seriesA: { name: labelA, data: profileA },
+      seriesB: { name: labelB, data: profileB },
+      xName: "时刻 (h)", yName: "逐时功率 (kW)",
+      highlight: {
+        value: `残留率 ${pct}%`,
+        sub: triggered ? `超阈值 ${thr}%` : `低于阈值 ${thr}%`,
+        color: triggered ? "warn" : "ok",
+      },
+    },
+    metrics: [
+      { label: `${labelA} 日均`, value: avgA.toString(), unit: "kWh", info: `${labelA}逐时功率日累计` },
+      { label: `${labelB} 日均`, value: avgB.toString(), unit: "kWh", info: `${labelB}逐时功率日累计` },
+      { label: "残留率 R", value: pct, unit: "%", threshold: `≤ ${thr}%`, triggered, info: residualInfo },
+      { label: "作息分组", value: group, unit: "", info: "业态作息分组阈值" },
+    ],
+    category: triggered ? "目标调适" : "正常",
+    reason,
+    windowInfo: { "作息分组": group, "残留率": `${pct}%(阈值 ≤ ${thr}%)`, ...(extraInfo || {}) },
+  };
+};
+
+// D05 · 工作日/周末/节假日差异 · 节假日维持高功耗(残留率超阈值)
+const D05_WINDOWS = [
+  win("2025-07-02(周三)/ 07-06(周日)", "—", "—", scheduleRJ({
+    profileA: [18, 16, 15, 16, 22, 45, 90, 140, 175, 190, 195, 190, 180, 178, 188, 196, 192, 175, 140, 95, 60, 40, 28, 20],
+    profileB: [30, 28, 26, 28, 42, 72, 112, 128, 138, 142, 144, 140, 134, 132, 140, 144, 142, 130, 112, 88, 62, 50, 42, 34],
+    labelA: "工作日 07-02", labelB: "周日 07-06",
+    residualRate: 0.66, threshold: 0.50, triggered: true,
+    avgA: 125, avgB: 82, group: "间歇运营(BA)",
+    reason: "BA 商业办公按'间歇运营'分组,周日日均功率达工作日的 66%,残留率 66% 远超 50% 阈值。节假日本应大幅降载,却维持高功耗,判定为存在无效运行,疑似空调/照明未按作息停机。",
+    extraInfo: { "同温匹配": "工作日 32.1℃ / 周日 31.8℃(Δ0.3 ≤ 1.5,可比)" },
+  })),
+  win("2025-08-13(周三)/ 08-15(节假日)", "—", "—", scheduleRJ({
+    profileA: [18, 16, 15, 16, 22, 45, 90, 140, 175, 190, 195, 190, 180, 178, 188, 196, 192, 175, 140, 95, 60, 40, 28, 20],
+    profileB: [26, 24, 22, 24, 36, 64, 100, 116, 124, 128, 130, 126, 120, 118, 126, 130, 128, 116, 100, 78, 55, 44, 36, 30],
+    labelA: "工作日 08-13", labelB: "节假日 08-15",
+    residualRate: 0.58, threshold: 0.50, triggered: true,
+    avgA: 130, avgB: 75, group: "间歇运营(BA)",
+    reason: "节假日日均达工作日 58%,残留率仍超 50% 阈值,节假日降载不足。",
+    extraInfo: { "同温匹配": "Δ0.5℃(可比)" },
+  })),
+];
+
+// S 系专项 · 共享示例(21 条 S 规则共用一套 E 类作息示例;各自数据待后端接入)
+// 说明:v4 表里 BJ-S2 标注为 D 类,但按"S 系整体挂一个 E 类示例"的约定,此处统一用 E。
+const S_EXAMPLE_WINDOWS = [
+  win("典型运营日 / 应有基线", "—", "—", scheduleRJ({
+    profileA: [80, 78, 76, 78, 82, 90, 120, 150, 165, 170, 168, 150, 148, 160, 168, 165, 150, 140, 135, 130, 120, 110, 95, 85],
+    profileB: [20, 18, 16, 18, 25, 45, 95, 145, 165, 170, 168, 145, 145, 158, 166, 163, 145, 120, 90, 55, 35, 28, 24, 22],
+    labelA: "实际运行", labelB: "应有基线",
+    residualRate: 0.72, threshold: 0.40, triggered: true,
+    avgA: 128, avgB: 95, group: "作息专项(示例)",
+    residualInfo: "非营业时段功率残留比",
+    reason: "【S 系专项示例数据】S 系规则用于识别特定业态的作息异常(如下班无断崖下跌、节假日维持功耗、午休/凌晨无降载等)。示例中实际运行曲线在非营业时段仍维持约 72% 的基线功率,残留率超 40% 阈值,判定异常。各 S 规则的真实计算数据待后端 CalcResult 接口接入。",
+    extraInfo: { "数据来源": "示例(占位)" },
+  })),
+  win("典型运营日(缓和)/ 应有基线", "—", "—", scheduleRJ({
+    profileA: [60, 58, 56, 58, 64, 78, 115, 148, 163, 168, 166, 148, 146, 158, 166, 162, 148, 135, 120, 100, 85, 72, 66, 62],
+    profileB: [20, 18, 16, 18, 25, 45, 95, 145, 165, 170, 168, 145, 145, 158, 166, 163, 145, 120, 90, 55, 35, 28, 24, 22],
+    labelA: "实际运行", labelB: "应有基线",
+    residualRate: 0.55, threshold: 0.40, triggered: true,
+    avgA: 118, avgB: 92, group: "作息专项(示例)",
+    residualInfo: "非营业时段功率残留比",
+    reason: "【S 系专项示例数据】第二窗口示例,非营业时段残留率 55%,仍超 40% 阈值。",
+    extraInfo: { "数据来源": "示例(占位)" },
+  })),
+];
+
+// 21 条 S 规则编码与名称(来自 v4 §7.5 全量映射表)
+const S_RULE_META = [
+  ["AA-S1", "机关-下班无断崖下跌"], ["AA-S2", "机关-节假日维持功耗"], ["AA-S3", "机关-午休风机无降载"],
+  ["BA-S1", "办公-夜间无低负荷"], ["BA-S2", "办公-周末满负荷"],
+  ["BB-S1", "商场-停业后下降小"], ["BB-S2", "商场-新风恒定高功耗"],
+  ["BC-S1", "酒店-凌晨冷冻泵未降"], ["BC-S2", "酒店-热水循环泵固定"],
+  ["BD-S1", "文化-闭馆日满负荷"], ["BD-S2", "文化-活动后高风量"],
+  ["BE-S1", "医疗-凌晨新风无分级"], ["BE-S2", "医疗-过渡季不降输配"],
+  ["BF-S1", "体育-无赛事日差距小"], ["BF-S2", "体育-泳池泵恒定"],
+  ["BH-S1", "教育-寒暑假全天运行"], ["BH-S2", "教育-课间午休无降载"],
+  ["BI-S1", "会展-空置期24h不断"], ["BI-S2", "会展-预冷不随温湿度调"],
+  ["BJ-S1", "交通-凌晨低客流无降"], ["BJ-S2", "交通-冷却塔仅启停"],
+];
+
 /* ───────────────────────────────────────────────────────────────
    规则清单(仅含已有 resultJSON 数据的规则;批次逐步补齐)
    每项:{ code, name, visualType, buildId, buildingName, windows[] }
@@ -552,6 +648,10 @@ export const VIZ_RULES = [
   { code: "C08", name: "冬日采暖差距", visualType: "C", buildId: "310101A010", buildingName: "市民服务中心", windows: C08_WINDOWS },
   { code: "D03", name: "梅雨季能效异常", visualType: "C", buildId: "310101B025", buildingName: "中区广场商场", windows: D03_WINDOWS },
   { code: "D04", name: "过渡季/盛夏比", visualType: "C", buildId: "310101A003", buildingName: "腾飞元创大厦", windows: D04_WINDOWS },
+  { code: "D05", name: "工作日周末节假日差异", visualType: "E", buildId: "310101G023", buildingName: "华旭国际大厦", windows: D05_WINDOWS },
+  ...S_RULE_META.map(([code, name]) => ({
+    code, name, visualType: "E", buildId: "—", buildingName: "S 系专项示例", windows: S_EXAMPLE_WINDOWS, isSample: true,
+  })),
 ];
 
 const VIZ_RULE_BY_CODE = Object.fromEntries(VIZ_RULES.map((r) => [r.code, r]));

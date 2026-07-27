@@ -74,7 +74,7 @@ const windowInfo = computed(() => rj.value?.windowInfo || {});
           <div class="viz-modal-title-row">
             <Icon name="flask" :size="16" stroke="var(--brand)" />
             <h3 class="modal-title">规则算法可视化</h3>
-            <span class="viz-type-badge mono">{{ rule.visualType }} · {{ VIZ_TYPE_LABEL[rule.visualType] }}</span>
+            <span class="viz-type-badge mono">{{ rule.visualType }} · {{ VIZ_TYPE_LABEL[rule.visualType] }}{{ rule.isSample ? " · 示例" : "" }}</span>
           </div>
           <button class="viz-modal-close" title="关闭" @click="emit('close')">
             <Icon name="x" :size="14" />

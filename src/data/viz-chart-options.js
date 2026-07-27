@@ -200,6 +200,43 @@ export function buildDayPairOption(c) {
   };
 }
 
+/* ─── E 类 · 作息模式 24h 双折线(工作日 vs 节假日/基线) ─── */
+export function buildScheduleOption(c) {
+  const hours = Array.from({ length: 24 }, (_, i) => `${i}`);
+  return {
+    ...CHART_THEME,
+    tooltip: {
+      ...TOOLTIP, trigger: "axis",
+      formatter: (ps) => {
+        const h = ps[0].axisValue;
+        const lines = ps.map((p) => `${p.marker}${p.seriesName}: ${p.value} kW`).join("<br/>");
+        return `${h}:00<br/>${lines}`;
+      },
+    },
+    legend: { ...CHART_THEME.legend, top: 8, right: 20, data: [c.seriesA.name, c.seriesB.name] },
+    grid: { top: 40, bottom: 55, left: 62, right: 30 },
+    xAxis: {
+      ...CHART_THEME.xAxis, type: "category", data: hours, boundaryGap: false,
+      name: c.xName || "时刻 (h)", nameLocation: "middle", nameGap: 30,
+      axisLabel: { ...CHART_THEME.xAxis.axisLabel, interval: 3 },
+    },
+    yAxis: { ...CHART_THEME.yAxis, type: "value", name: c.yName || "逐时功率 (kW)", nameLocation: "middle", nameGap: 44 },
+    series: [
+      {
+        name: c.seriesA.name, type: "line", data: c.seriesA.data, smooth: true, showSymbol: false,
+        lineStyle: { color: "#1f6feb", width: 2.5 },
+        areaStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "rgba(31,111,235,0.22)" }, { offset: 1, color: "rgba(31,111,235,0.02)" }] } },
+      },
+      {
+        name: c.seriesB.name, type: "line", data: c.seriesB.data, smooth: true, showSymbol: false,
+        lineStyle: { color: "#06b6d4", width: 2.5, type: "dashed" },
+        areaStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "rgba(6,182,212,0.16)" }, { offset: 1, color: "rgba(6,182,212,0.02)" }] } },
+      },
+    ],
+    graphic: highlightGraphic(c.highlight, { right: 50, top: 44 }),
+  };
+}
+
 /* ─── 分发入口:按 visualType 选 builder ─── */
 export function buildChartOption(visualType, chart) {
   switch (visualType) {
@@ -207,7 +244,7 @@ export function buildChartOption(visualType, chart) {
     case "B": return buildRegressionOption(chart);
     case "C": return buildDayPairOption(chart);
     case "D": return buildDistributionOption(chart);
-    // E(批次3)待补
+    case "E": return buildScheduleOption(chart);
     default: return {};
   }
 }
