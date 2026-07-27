@@ -306,6 +306,235 @@ const C06_WINDOWS = [
   win("2025-07-22 至 07-24", "29.1℃", "25.0℃", c06mk(0.24, 1.36)),
 ];
 
+/* ═══════════════════════════════════════════════════════════════
+   C 类 · 日对对比(分组柱)· 批次2 · C02/C03/C05/C07/C08/D03/D04
+   ═══════════════════════════════════════════════════════════════ */
+// 组装一条 dayPair resultJSON。deltaEta 用小数(0.038 = 3.8%);
+// metricLabel/hlPrefix 让"变化率/比值/差异"型指标各自贴切表述。
+const dayPairRJ = ({
+  series, unit = "kWh", dayALabel, dayBLabel,
+  meteoVar, meteoA, meteoB, meteoUnit = "℃",
+  deltaEta, etaThreshold, etaCompare = "≤",
+  metricLabel = "能耗变化率 Δη", hlPrefix = "Δη",
+  triggered, reason, extraInfo,
+}) => {
+  const totalA = series.reduce((s, x) => s + x.dayA, 0);
+  const totalB = series.reduce((s, x) => s + x.dayB, 0);
+  const etaPct = (deltaEta * 100).toFixed(1);
+  const thrPct = (etaThreshold * 100).toFixed(0);
+  return {
+    visualType: "C",
+    chart: {
+      series, unit, dayALabel, dayBLabel,
+      xName: "设备分项", yName: `能耗 (${unit})`,
+      highlight: {
+        value: `${hlPrefix} = ${etaPct}%`,
+        sub: triggered ? `未达阈值 ${etaCompare} ${thrPct}%` : "达标",
+        color: triggered ? "warn" : "ok",
+      },
+    },
+    metrics: [
+      { label: `${meteoVar}变化`, value: `${meteoA} → ${meteoB}`, unit: meteoUnit, info: `${dayALabel} → ${dayBLabel}` },
+      { label: metricLabel, value: etaPct, unit: "%", threshold: `${etaCompare} ${thrPct}%`, triggered, info: "相关侧能耗变化" },
+      { label: `${dayALabel} 合计`, value: totalA.toString(), unit, info: "Day A 分项合计" },
+      { label: `${dayBLabel} 合计`, value: totalB.toString(), unit, info: "Day B 分项合计" },
+    ],
+    category: triggered ? "目标调适" : "正常",
+    reason,
+    windowInfo: {
+      "Day A": dayALabel, "Day B": dayBLabel,
+      [`${meteoVar}对比`]: `${meteoA} → ${meteoB} ${meteoUnit}`,
+      ...(extraInfo || {}),
+    },
+  };
+};
+
+// C02 · 湿球拐点电耗无响应(散热侧 U2A00/U2A02/U2A04)· 湿球降但能耗不降
+const C02_WINDOWS = [
+  win("2025-07-10 / 07-12", "—", "—", dayPairRJ({
+    series: [
+      { name: "U2A00 冷热站", dayA: 1240, dayB: 1232, delta: -8 },
+      { name: "U2A02 冷却泵", dayA: 198, dayB: 196, delta: -2 },
+      { name: "U2A04 冷却塔", dayA: 65, dayB: 64, delta: -1 },
+    ],
+    dayALabel: "降温前 07-10", dayBLabel: "降温后 07-12",
+    meteoVar: "湿球", meteoA: 26.3, meteoB: 24.1,
+    deltaEta: -0.007, etaThreshold: -0.05, triggered: true,
+    reason: "湿球温度下降 2.2℃,散热侧能耗仅下降 0.7%,远未达到 -5% 的预期降幅。冷却塔/冷却泵未随湿球下降降载,判定为对湿球拐点无响应,推测冷却侧缺乏变频或联动控制。",
+    extraInfo: { "湿球降幅": "2.2℃(≥1.5℃ 满足触发前置)" },
+  })),
+  win("2025-08-02 / 08-04", "—", "—", dayPairRJ({
+    series: [
+      { name: "U2A00 冷热站", dayA: 1210, dayB: 1188, delta: -22 },
+      { name: "U2A02 冷却泵", dayA: 190, dayB: 186, delta: -4 },
+      { name: "U2A04 冷却塔", dayA: 62, dayB: 60, delta: -2 },
+    ],
+    dayALabel: "降温前 08-02", dayBLabel: "降温后 08-04",
+    meteoVar: "湿球", meteoA: 25.8, meteoB: 23.9,
+    deltaEta: -0.019, etaThreshold: -0.05, triggered: true,
+    reason: "湿球下降 1.9℃,散热侧能耗仅降 1.9%,仍低于 -5% 预期。散热侧对湿球响应不足。",
+    extraInfo: { "湿球降幅": "1.9℃" },
+  })),
+];
+
+// C03 · 冷冻泵涨幅不足 · 负荷上升(干球升)时冷冻泵能耗涨幅偏小
+const C03_WINDOWS = [
+  win("2025-07-18 / 07-21", "—", "—", dayPairRJ({
+    series: [
+      { name: "U2A00 冷热站", dayA: 980, dayB: 1180, delta: 200 },
+      { name: "U2A01 冷冻泵", dayA: 210, dayB: 218, delta: 8 },
+    ],
+    dayALabel: "低负荷 07-18", dayBLabel: "高负荷 07-21",
+    meteoVar: "干球", meteoA: 28.0, meteoB: 33.2,
+    deltaEta: 0.038, etaThreshold: 0.15, etaCompare: "≥",
+    metricLabel: "冷冻泵涨幅", triggered: true,
+    reason: "干球升高 5.2℃、冷机能耗上涨 20%,冷冻泵能耗却仅上涨 3.8%,未达 ≥15% 的预期涨幅。冷冻水流量未随负荷同步增加,疑似冷冻泵定频运行或阀门限位。",
+  })),
+  win("2025-08-08 / 08-11", "—", "—", dayPairRJ({
+    series: [
+      { name: "U2A00 冷热站", dayA: 1020, dayB: 1210, delta: 190 },
+      { name: "U2A01 冷冻泵", dayA: 216, dayB: 230, delta: 14 },
+    ],
+    dayALabel: "低负荷 08-08", dayBLabel: "高负荷 08-11",
+    meteoVar: "干球", meteoA: 29.1, meteoB: 33.8,
+    deltaEta: 0.065, etaThreshold: 0.15, etaCompare: "≥",
+    metricLabel: "冷冻泵涨幅", triggered: true,
+    reason: "负荷上升时冷冻泵涨幅 6.5%,仍低于 15% 阈值,流量响应不足。",
+  })),
+];
+
+// C05 · 高湿工况冷却侧能耗激增(冷却占比异常)
+const C05_WINDOWS = [
+  win("2025-07-14 / 07-25", "—", "—", dayPairRJ({
+    series: [
+      { name: "U2A00 冷机", dayA: 1100, dayB: 1130, delta: 30 },
+      { name: "U2A02 冷却泵", dayA: 150, dayB: 320, delta: 170 },
+      { name: "U2A04 冷却塔", dayA: 55, dayB: 140, delta: 85 },
+    ],
+    dayALabel: "常湿日 07-14", dayBLabel: "高湿日 07-25",
+    meteoVar: "湿球", meteoA: 22.0, meteoB: 26.2,
+    deltaEta: 1.24, etaThreshold: 0.40, metricLabel: "冷却侧能耗变化率",
+    triggered: true,
+    reason: "高湿工况下冷却侧(冷却泵+冷却塔)能耗激增 124%,而冷机仅变化 2.7%。冷却侧变化远超 40% 阈值,散热与制冷负荷严重失衡,疑似冷却塔逼近度过大或冷却水温设定不当。",
+  })),
+  win("2025-08-06 / 08-19", "—", "—", dayPairRJ({
+    series: [
+      { name: "U2A00 冷机", dayA: 1140, dayB: 1175, delta: 35 },
+      { name: "U2A02 冷却泵", dayA: 158, dayB: 300, delta: 142 },
+      { name: "U2A04 冷却塔", dayA: 60, dayB: 128, delta: 68 },
+    ],
+    dayALabel: "常湿日 08-06", dayBLabel: "高湿日 08-19",
+    meteoVar: "湿球", meteoA: 22.4, meteoB: 25.9,
+    deltaEta: 0.96, etaThreshold: 0.40, metricLabel: "冷却侧能耗变化率",
+    triggered: true,
+    reason: "高湿日冷却侧能耗上升 96%,超过 40% 阈值,冷却侧失衡持续存在。",
+  })),
+];
+
+// C07 · 冬季升温采暖降幅弱 · 干球回升采暖不降载
+const C07_WINDOWS = [
+  win("2026-01-08 / 01-12", "—", "—", dayPairRJ({
+    series: [
+      { name: "采暖热源", dayA: 890, dayB: 862, delta: -28 },
+      { name: "热水循环泵", dayA: 120, dayB: 118, delta: -2 },
+    ],
+    dayALabel: "低温日 01-08", dayBLabel: "回暖日 01-12",
+    meteoVar: "干球", meteoA: 4.0, meteoB: 9.5,
+    deltaEta: -0.031, etaThreshold: -0.12, triggered: true,
+    reason: "室外干球回升 5.5℃,采暖侧能耗仅下降 3.1%,未达 -12% 预期降幅。采暖机组未随气温回升降载,疑似供水温度定值运行、缺乏气候补偿。",
+  })),
+  win("2026-01-20 / 01-24", "—", "—", dayPairRJ({
+    series: [
+      { name: "采暖热源", dayA: 910, dayB: 872, delta: -38 },
+      { name: "热水循环泵", dayA: 124, dayB: 121, delta: -3 },
+    ],
+    dayALabel: "低温日 01-20", dayBLabel: "回暖日 01-24",
+    meteoVar: "干球", meteoA: 3.2, meteoB: 8.1,
+    deltaEta: -0.041, etaThreshold: -0.12, triggered: true,
+    reason: "干球回升 4.9℃,采暖降幅 4.1%,仍显著低于 12% 预期。",
+  })),
+];
+
+// C08 · 冬日采暖差距 · 相近气温两日采暖能耗差距过大
+const C08_WINDOWS = [
+  win("2026-01-15 / 01-17", "—", "—", dayPairRJ({
+    series: [
+      { name: "采暖热源", dayA: 720, dayB: 1010, delta: 290 },
+      { name: "热水循环泵", dayA: 110, dayB: 145, delta: 35 },
+    ],
+    dayALabel: "01-15", dayBLabel: "01-17",
+    meteoVar: "干球", meteoA: 3.5, meteoB: 3.2,
+    deltaEta: 0.40, etaThreshold: 0.15, etaCompare: "≤",
+    metricLabel: "两日采暖差", hlPrefix: "差异", triggered: true,
+    reason: "两日室外干球相近(3.5 / 3.2℃),采暖能耗却相差 40%,远超 15% 的合理波动区间。采暖运行不稳定,疑似夜间未回落或存在无效供热时段。",
+  })),
+  win("2026-02-03 / 02-05", "—", "—", dayPairRJ({
+    series: [
+      { name: "采暖热源", dayA: 760, dayB: 995, delta: 235 },
+      { name: "热水循环泵", dayA: 115, dayB: 140, delta: 25 },
+    ],
+    dayALabel: "02-03", dayBLabel: "02-05",
+    meteoVar: "干球", meteoA: 2.8, meteoB: 3.0,
+    deltaEta: 0.31, etaThreshold: 0.15, etaCompare: "≤",
+    metricLabel: "两日采暖差", hlPrefix: "差异", triggered: true,
+    reason: "气温相近两日采暖能耗差 31%,仍超 15% 阈值,采暖控制不稳定。",
+  })),
+];
+
+// D03 · 梅雨季能效异常 · 相近湿球相邻两日空调电耗差距大
+const D03_WINDOWS = [
+  win("2025-06-18 / 06-19", "—", "—", dayPairRJ({
+    series: [
+      { name: "U2A00 冷机", dayA: 640, dayB: 910, delta: 270 },
+      { name: "U2B01 AHU", dayA: 210, dayB: 240, delta: 30 },
+    ],
+    dayALabel: "06-18", dayBLabel: "06-19",
+    meteoVar: "湿球", meteoA: 24.5, meteoB: 24.8,
+    deltaEta: 0.38, etaThreshold: 0.18, etaCompare: "≤",
+    metricLabel: "两日能效差", hlPrefix: "差异", triggered: true,
+    reason: "梅雨季相邻两日湿球温度接近(24.5 / 24.8℃),空调电耗却相差 38%,能效表现异常波动,疑似除湿再热策略或新风控制紊乱。",
+  })),
+  win("2025-06-26 / 06-27", "—", "—", dayPairRJ({
+    series: [
+      { name: "U2A00 冷机", dayA: 680, dayB: 900, delta: 220 },
+      { name: "U2B01 AHU", dayA: 220, dayB: 246, delta: 26 },
+    ],
+    dayALabel: "06-26", dayBLabel: "06-27",
+    meteoVar: "湿球", meteoA: 24.9, meteoB: 25.1,
+    deltaEta: 0.31, etaThreshold: 0.18, etaCompare: "≤",
+    metricLabel: "两日能效差", hlPrefix: "差异", triggered: true,
+    reason: "湿球接近两日空调电耗差 31%,超 18% 阈值,梅雨季能效不稳。",
+  })),
+];
+
+// D04 · 过渡季/盛夏比过高 · 过渡季典型日能耗接近盛夏
+const D04_WINDOWS = [
+  win("2025-10-15 / 2025-08-08", "—", "—", dayPairRJ({
+    series: [
+      { name: "U2A00 冷机", dayA: 520, dayB: 980, delta: 460 },
+      { name: "U2B01 AHU", dayA: 180, dayB: 250, delta: 70 },
+      { name: "U2A04 冷却塔", dayA: 40, dayB: 120, delta: 80 },
+    ],
+    dayALabel: "过渡季 10-15", dayBLabel: "盛夏 08-08",
+    meteoVar: "干球", meteoA: 24.1, meteoB: 33.4,
+    deltaEta: 0.548, etaThreshold: 0.35, etaCompare: "≤",
+    metricLabel: "过渡季/盛夏比", hlPrefix: "比值", triggered: true,
+    reason: "过渡季典型日空调能耗达盛夏典型日的 54.8%,远超 35% 的合理上限。过渡季本应低负荷,却维持高能耗,疑似机组常开、经济器/免费冷却未启用。",
+  })),
+  win("2025-04-20 / 2025-08-08", "—", "—", dayPairRJ({
+    series: [
+      { name: "U2A00 冷机", dayA: 500, dayB: 980, delta: 480 },
+      { name: "U2B01 AHU", dayA: 172, dayB: 250, delta: 78 },
+      { name: "U2A04 冷却塔", dayA: 36, dayB: 120, delta: 84 },
+    ],
+    dayALabel: "过渡季 04-20", dayBLabel: "盛夏 08-08",
+    meteoVar: "干球", meteoA: 23.6, meteoB: 33.4,
+    deltaEta: 0.517, etaThreshold: 0.35, etaCompare: "≤",
+    metricLabel: "过渡季/盛夏比", hlPrefix: "比值", triggered: true,
+    reason: "春季过渡日能耗达盛夏 51.7%,超过 35% 上限,过渡季节能空间大。",
+  })),
+];
+
 /* ───────────────────────────────────────────────────────────────
    规则清单(仅含已有 resultJSON 数据的规则;批次逐步补齐)
    每项:{ code, name, visualType, buildId, buildingName, windows[] }
@@ -316,6 +545,13 @@ export const VIZ_RULES = [
   { code: "D02", name: "能学签名斜率", visualType: "B", buildId: "310101G023", buildingName: "华旭国际大厦", windows: D02_WINDOWS },
   { code: "C04", name: "冷却塔无变频", visualType: "D", buildId: "310101C002", buildingName: "花园饭店", windows: C04_WINDOWS },
   { code: "C06", name: "AHU 离散度极大", visualType: "D", buildId: "310101A094", buildingName: "中区广场办公楼", windows: C06_WINDOWS },
+  { code: "C02", name: "湿球拐点电耗无响应", visualType: "C", buildId: "310101A003", buildingName: "腾飞元创大厦", windows: C02_WINDOWS },
+  { code: "C03", name: "冷冻泵涨幅不足", visualType: "C", buildId: "310101B025", buildingName: "中区广场商场", windows: C03_WINDOWS },
+  { code: "C05", name: "高湿冷却占比", visualType: "C", buildId: "310101B025", buildingName: "中区广场商场", windows: C05_WINDOWS },
+  { code: "C07", name: "冬季升温采暖降幅弱", visualType: "C", buildId: "310101A010", buildingName: "市民服务中心", windows: C07_WINDOWS },
+  { code: "C08", name: "冬日采暖差距", visualType: "C", buildId: "310101A010", buildingName: "市民服务中心", windows: C08_WINDOWS },
+  { code: "D03", name: "梅雨季能效异常", visualType: "C", buildId: "310101B025", buildingName: "中区广场商场", windows: D03_WINDOWS },
+  { code: "D04", name: "过渡季/盛夏比", visualType: "C", buildId: "310101A003", buildingName: "腾飞元创大厦", windows: D04_WINDOWS },
 ];
 
 const VIZ_RULE_BY_CODE = Object.fromEntries(VIZ_RULES.map((r) => [r.code, r]));

@@ -26,6 +26,22 @@ function annotationGraphic(lines, { right = 40, top = 45, color = "#0891b2" } = 
   }];
 }
 
+// 右侧指标高亮框(大数值 + 副标题);B 回归 / C 日对 复用
+function highlightGraphic(hl, { right = 60, top = 45 } = {}) {
+  if (!hl || !hl.value) return [];
+  const color = hl.color === "ok" ? "#10b981" : "#e54e6e";
+  const fill = hl.color === "ok" ? "rgba(16,185,129,0.10)" : "rgba(229,78,110,0.10)";
+  const stroke = hl.color === "ok" ? "rgba(16,185,129,0.35)" : "rgba(229,78,110,0.35)";
+  return [{
+    type: "group", right, top,
+    children: [
+      { type: "rect", shape: { width: 150, height: 52, r: 6 }, style: { fill, stroke, lineWidth: 1 } },
+      { type: "text", left: 12, top: 8, style: { text: hl.value, fontSize: 18, fontWeight: 700, fill: color, fontFamily: '"JetBrains Mono", monospace' } },
+      { type: "text", left: 12, top: 34, style: { text: hl.sub || "", fontSize: 10, fill: color, fontFamily: '"Noto Sans SC", sans-serif' } },
+    ],
+  }];
+}
+
 /* ─── A 类 · K-means 散点(两簇着色 + 均值参考线) ─── */
 export function buildClusterOption(c) {
   return {
@@ -74,10 +90,6 @@ export function buildClusterOption(c) {
 
 /* ─── B 类 · 线性回归散点 + 拟合线 + 指标高亮框 ─── */
 export function buildRegressionOption(c) {
-  const hl = c.highlight || {};
-  const hlColor = hl.color === "ok" ? "#10b981" : "#e54e6e";
-  const hlFill = hl.color === "ok" ? "rgba(16,185,129,0.10)" : "rgba(229,78,110,0.10)";
-  const hlStroke = hl.color === "ok" ? "rgba(16,185,129,0.35)" : "rgba(229,78,110,0.35)";
   return {
     ...CHART_THEME,
     tooltip: {
@@ -109,14 +121,7 @@ export function buildRegressionOption(c) {
         lineStyle: { color: "#e54e6e", width: 2.5, type: "solid" }, z: 3,
       },
     ],
-    graphic: hl.value ? [{
-      type: "group", right: 60, top: 45,
-      children: [
-        { type: "rect", shape: { width: 140, height: 52, r: 6 }, style: { fill: hlFill, stroke: hlStroke, lineWidth: 1 } },
-        { type: "text", left: 12, top: 8, style: { text: hl.value, fontSize: 18, fontWeight: 700, fill: hlColor, fontFamily: '"JetBrains Mono", monospace' } },
-        { type: "text", left: 12, top: 34, style: { text: hl.sub || "", fontSize: 10, fill: hlColor, fontFamily: '"Noto Sans SC", sans-serif' } },
-      ],
-    }] : [],
+    graphic: highlightGraphic(c.highlight, { right: 60, top: 45 }),
   };
 }
 
@@ -156,13 +161,53 @@ export function buildDistributionOption(c) {
   };
 }
 
+/* ─── C 类 · 日对对比分组柱(Day A vs Day B 按设备分项) ─── */
+export function buildDayPairOption(c) {
+  const names = c.series.map((s) => s.name);
+  const aData = c.series.map((s) => s.dayA);
+  const bData = c.series.map((s) => s.dayB);
+  return {
+    ...CHART_THEME,
+    tooltip: {
+      ...TOOLTIP, trigger: "axis", axisPointer: { type: "shadow" },
+      formatter: (ps) => {
+        const s = c.series[ps[0].dataIndex];
+        const sign = s.delta > 0 ? "+" : "";
+        return `<b>${s.name}</b><br/>${c.dayALabel}: ${s.dayA} ${c.unit}<br/>${c.dayBLabel}: ${s.dayB} ${c.unit}<br/>Δ ${sign}${s.delta} ${c.unit}`;
+      },
+    },
+    legend: { ...CHART_THEME.legend, top: 8, right: 20, data: [c.dayALabel, c.dayBLabel] },
+    grid: { top: 40, bottom: 60, left: 66, right: 30 },
+    xAxis: {
+      ...CHART_THEME.xAxis, type: "category", data: names,
+      name: c.xName, nameLocation: "middle", nameGap: 34,
+      axisLabel: { ...CHART_THEME.xAxis.axisLabel, interval: 0, fontSize: 10 },
+    },
+    yAxis: { ...CHART_THEME.yAxis, type: "value", name: c.yName, nameLocation: "middle", nameGap: 46 },
+    series: [
+      {
+        name: c.dayALabel, type: "bar", data: aData, barGap: "12%", barWidth: "32%",
+        itemStyle: { color: "rgba(31,111,235,0.85)", borderRadius: [4, 4, 0, 0] },
+        label: { show: true, position: "top", color: "#38496b", fontSize: 10 },
+      },
+      {
+        name: c.dayBLabel, type: "bar", data: bData, barWidth: "32%",
+        itemStyle: { color: "rgba(6,182,212,0.8)", borderRadius: [4, 4, 0, 0] },
+        label: { show: true, position: "top", color: "#38496b", fontSize: 10 },
+      },
+    ],
+    graphic: highlightGraphic(c.highlight, { right: 50, top: 44 }),
+  };
+}
+
 /* ─── 分发入口:按 visualType 选 builder ─── */
 export function buildChartOption(visualType, chart) {
   switch (visualType) {
     case "A": return buildClusterOption(chart);
     case "B": return buildRegressionOption(chart);
+    case "C": return buildDayPairOption(chart);
     case "D": return buildDistributionOption(chart);
-    // C(批次2)、E(批次3)待补
+    // E(批次3)待补
     default: return {};
   }
 }
