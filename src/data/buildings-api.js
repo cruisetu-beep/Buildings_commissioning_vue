@@ -61,11 +61,25 @@ function isAllRulesPreview() {
 function backfillAllVizRules(data) {
   if (!data) return data;
   const results = data.results || (data.results = []);
-  const present = new Set(results.map((r) => r.ruleCode));
+  const byCode = new Map(results.map((r) => [r.ruleCode, r]));
+  // 大纲(RuleOutlineList)只渲染这几个分组;其余(如"无数据")会被静默隐藏
+  const VISIBLE_CATS = ["目标调适", "待核查", "正常", "无节点"];
   let added = 0;
+  let promoted = 0;
   VIZ_RULES.forEach((vr) => {
-    if (present.has(vr.code)) return;
     const rj = vr.windows?.[0]?.resultJSON;
+    const existing = byCode.get(vr.code);
+    if (existing) {
+      // 已有该规则:若 category 不在可见分组(会被隐藏),提升到 viz 示例对应分组
+      if (!VISIBLE_CATS.includes(existing.category)) {
+        existing.category = rj?.category || "目标调适";
+        existing.detailResult = existing.detailResult || rj?.reason || "";
+        existing._vizPreview = true;
+        promoted += 1;
+      }
+      return;
+    }
+    // 后端未返回该规则:合成一条最小行
     results.push({
       ruleCode: vr.code,
       ruleName: vr.name,
@@ -82,7 +96,7 @@ function backfillAllVizRules(data) {
     });
     added += 1;
   });
-  console.info(`[allrules] 演示补齐 ${added} 条 viz 规则(当前结果共 ${results.length} 条)`);
+  console.info(`[allrules] 演示:新增 ${added} 条 / 提升 ${promoted} 条隐藏规则(结果共 ${results.length} 条)`);
   return data;
 }
 
