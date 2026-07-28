@@ -73,25 +73,21 @@ const handleJumpToViz = (ruleCode) => {
         <div class="bd-head-title-row">
           <span class="bd-head-id display mono">{{ building.buildId }}</span>
           <span class="bd-head-name">{{ building.name }}</span>
-        </div>
-        <div class="bd-head-stats">
-          <BuildFuncTag :func="building.buildFunc" :func-name="building.buildFuncName" />
-          <div class="bd-stat-chip target">
-            <Icon name="target" :size="12" stroke="var(--status-target)" />
-            <span>目标调适命中</span>
-            <b class="bd-stat-num mono">{{ targetCount }}</b>
-            <span>条</span>
+          <div class="bd-head-stats">
+            <BuildFuncTag :func="building.buildFunc" :func-name="building.buildFuncName" />
+            <div class="bd-stat-chip target">
+              <Icon name="target" :size="12" stroke="var(--status-target)" />
+              <span>目标调适命中</span>
+              <b class="bd-stat-num mono">{{ targetCount }}</b>
+              <span>条</span>
+            </div>
+            <div class="bd-stat-chip normal">
+              <Icon name="check" :size="12" stroke="var(--status-normal)" />
+              <span>正常规则</span>
+              <b class="bd-stat-num mono">{{ normalCount }}</b>
+              <span>条</span>
+            </div>
           </div>
-          <div class="bd-stat-chip normal">
-            <Icon name="check" :size="12" stroke="var(--status-normal)" />
-            <span>正常规则</span>
-            <b class="bd-stat-num mono">{{ normalCount }}</b>
-            <span>条</span>
-          </div>
-          <span v-if="building.nodeCoverage !== '完整'" class="node-warn mono">
-            <Icon name="alert" :size="10" stroke="#d97706" />
-            节点{{ building.nodeCoverage }}
-          </span>
         </div>
       </div>
 
