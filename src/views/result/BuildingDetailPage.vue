@@ -108,7 +108,7 @@ const handleJumpToViz = (ruleCode) => {
         <RuleOutlineList :results="results" :active-code="activeCode" @select="(c) => (activeCode = c)" />
       </div>
       <div class="bd-mid card glow">
-        <RuleDetailArea :result="activeResult" @jump-to-viz="handleJumpToViz" />
+        <RuleDetailArea :result="activeResult" :building="building" @jump-to-viz="handleJumpToViz" />
       </div>
     </div>
 

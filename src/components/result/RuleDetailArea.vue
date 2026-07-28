@@ -1,37 +1,48 @@
 <script setup>
 /* ═══════════════════════════════════════════════════════════════
-   RuleDetailArea · 中栏 · 选中规则的完整判定详情
+   RuleDetailArea · 中栏 · 选中规则的判定详情 + 计算过程(内联)
+   ───────────────────────────────────────────────────────────────
+   计算过程内容(图表 + 结论/指标/窗口面板)直接内联于此,由 viz mock
+   驱动(getVizRule),切换窗口时图与面板同步。方向 A:窗口内容取自 viz
+   示例,后端 CalcResult 接口就绪后把 getVizRule 换为真接口即可全真。
    ═══════════════════════════════════════════════════════════════ */
 import { ref, computed, watch } from "vue";
 import Icon from "../icons/Icon.vue";
 import SeriesTag from "../common/SeriesTag.vue";
 import PriorityChip from "../common/PriorityChip.vue";
 import CategoryStatusChip from "../common/CategoryStatusChip.vue";
-import WindowTabs from "./WindowTabs.vue";
-import ValueRow from "./ValueRow.vue";
-import { hasVizChart } from "../../data/viz-data.js";
+import RuleVisualization from "./RuleVisualization.vue";
+import VerdictCard from "./VerdictCard.vue";
+import MetricsPanel from "./MetricsPanel.vue";
+import WindowInfoPanel from "./WindowInfoPanel.vue";
+import { getVizRule, VIZ_TYPE_LABEL } from "../../data/viz-data.js";
+import "../../assets/styles/rule-viz.css"; // 面板样式(verdict/metrics/window/viz-chart)依赖此表
 
 const props = defineProps({
   result: { type: Object, default: null },
+  building: { type: Object, default: () => ({}) },
 });
-const emit = defineEmits(["jump-to-viz"]);
 
 const windowIdx = ref(0);
 watch(() => props.result?.ruleCode, () => { windowIdx.value = 0; });
 
-const w = computed(() => props.result?.windows?.[windowIdx.value]);
+const rule = computed(() => (props.result ? getVizRule(props.result.ruleCode) : null));
+const windows = computed(() => rule.value?.windows || []);
+const activeWindow = computed(() => windows.value[windowIdx.value] || null);
+const rj = computed(() => activeWindow.value?.resultJSON || null);
 
-// 窗口判定文字(正常/目标调适等,后端字段优先;缺省时按触发态兜底)
-const verdictText = computed(() => {
-  const win = w.value;
-  if (!win) return "";
-  return win.verdict || (win.isTriggered ? "目标调适" : "正常");
+const displayName = computed(() => props.result?.ruleName || rule.value?.name || "");
+const activePeriodStr = computed(() => {
+  const w = activeWindow.value;
+  if (!w) return "";
+  return `${windowIdx.value + 1}/${windows.value.length} · ${w.period}`;
 });
-const verdictTrig = computed(() => {
-  const win = w.value;
-  if (!win) return false;
-  return win.verdict ? ["目标调适", "待核查"].includes(win.verdict) : !!win.isTriggered;
-});
+
+// 结论/指标/窗口面板均取自当前窗口 resultJSON
+const triggered = computed(() => rj.value?.category === "目标调适");
+const conclusion = computed(() => rj.value?.reason || "");
+const metrics = computed(() => rj.value?.metrics || []);
+const windowInfo = computed(() => rj.value?.windowInfo || {});
 </script>
 
 <template>
@@ -46,9 +57,9 @@ const verdictTrig = computed(() => {
       <div class="rd-head-title">
         <span class="rd-code mono">{{ result.ruleCode }}</span>
         <span class="rd-name">{{ result.ruleName }}</span>
-        <button v-if="hasVizChart(result.ruleCode)" class="rd-viz-btn" @click="emit('jump-to-viz', result.ruleCode)">
+        <button class="rd-viz-btn" disabled title="规则详细(暂未开放)">
           <Icon name="flask" :size="13" />
-          <span>计算过程</span>
+          <span>规则详细</span>
         </button>
       </div>
       <div class="rd-head-tags">
@@ -61,46 +72,51 @@ const verdictTrig = computed(() => {
       </div>
     </div>
 
-    <!-- 窗口明细(若有窗口) -->
-    <template v-if="result.windows.length > 0">
+    <!-- 计算过程(viz 驱动,切换窗口同步) -->
+    <template v-if="rule && windows.length">
       <div class="rd-section-title">
-        <Icon name="target" :size="13" stroke="var(--brand)" />
-        <span>窗口明细</span>
-        <span class="rd-section-hint">共 {{ result.windows.length }} 个有效窗口</span>
+        <Icon name="flask" :size="13" stroke="var(--brand)" />
+        <span>计算过程</span>
+        <span class="viz-type-badge mono">{{ rule.visualType }} · {{ VIZ_TYPE_LABEL[rule.visualType] }}</span>
+        <span class="rd-section-hint">共 {{ windows.length }} 个窗口</span>
       </div>
 
-      <WindowTabs :windows="result.windows" :active-idx="windowIdx" @update:active-idx="(v) => (windowIdx = v)" />
+      <!-- 窗口切换 -->
+      <div class="rd-win-tabs">
+        <button
+          v-for="(win, i) in windows"
+          :key="i"
+          class="rd-win-tab"
+          :class="{ active: i === windowIdx }"
+          @click="windowIdx = i"
+        >
+          <span class="mono">窗口 {{ i + 1 }}</span>
+          <span class="rd-win-tab-period">{{ win.period }}</span>
+        </button>
+      </div>
 
-      <div v-if="w" class="rd-window-content">
-        <div class="rd-window-meta">
-          <div>
-            <span class="rd-wm-label">分析窗口</span>
-            <span class="rd-wm-value mono">{{ w.period }}</span>
-          </div>
-          <div>
-            <span class="rd-wm-label">窗口条件</span>
-            <span class="rd-wm-value">{{ w.condition || "—" }}</span>
-          </div>
-          <div class="rd-wm-params">
-            <span class="rd-wm-label">核心参数</span>
-            <span class="rd-wm-value rd-wm-param-list">
-              <span v-if="!w.values || !w.values.length" class="rd-wm-dim">—</span>
-              <span v-for="(v, i) in w.values" :key="i" class="rd-wm-param">
-                {{ v.name }} <b class="mono">{{ v.value }}{{ v.unit }}</b>
-              </span>
-            </span>
-          </div>
-          <div>
-            <span class="rd-wm-label">窗口判定</span>
-            <span class="rd-wm-value" :class="verdictTrig ? 'trig' : 'ok'">{{ verdictText }}</span>
-          </div>
+      <!-- 竖排:图表 → 结论 → 指标 → 窗口信息 -->
+      <div class="rd-viz-stack">
+        <div class="rd-viz-chart card glow">
+          <RuleVisualization
+            :rule-code="rule.code"
+            :rule-name="displayName"
+            :visual-type="rule.visualType"
+            :chart="rj?.chart || {}"
+            :build-id="building.buildId"
+            :building-name="building.name"
+            :window-label="activePeriodStr"
+          />
         </div>
-
-        <div class="rd-values-title">计算指标(F_Value1~{{ w.values.length }})</div>
-        <div class="rd-values-list">
-          <ValueRow v-for="(v, i) in w.values" :key="i" :v="v" />
-        </div>
+        <VerdictCard :triggered="triggered" :conclusion="conclusion" :rule-code="rule.code" />
+        <MetricsPanel :metrics="metrics" />
+        <WindowInfoPanel :info="windowInfo" />
       </div>
     </template>
+
+    <div v-else class="rd-viz-empty">
+      <Icon name="lock" :size="18" stroke="var(--text-3)" />
+      <span>该规则的计算过程数据待接入</span>
+    </div>
   </div>
 </template>

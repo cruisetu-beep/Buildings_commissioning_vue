@@ -424,82 +424,58 @@
         background: var(--ok);
       }
 
-      /* 窗口内容 */
-      .rd-window-content {}
-
-      .rd-window-meta {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 10px;
-        padding: 12px 14px;
+      /* ─── 计算过程内联区 ─── */
+      /* 窗口切换 tab */
+      .rd-win-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
         margin-bottom: 14px;
-        background: linear-gradient(180deg, #fafcff, #f5f8fd);
+      }
+      .rd-win-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        font-size: 12px;
+        color: var(--text-1);
+        background: white;
         border: 1px solid var(--line);
+        border-radius: 7px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .rd-win-tab:hover { border-color: var(--line-strong); background: #fafcff; }
+      .rd-win-tab.active {
+        color: var(--brand);
+        background: rgba(31, 111, 235, 0.06);
+        border-color: rgba(31, 111, 235, 0.4);
+      }
+      .rd-win-tab-period { color: var(--text-3); font-size: 11px; }
+      .rd-win-tab.active .rd-win-tab-period { color: var(--brand); }
+
+      /* 竖排堆叠:图表 + 结论/指标/窗口面板 */
+      .rd-viz-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .rd-viz-chart { padding: 12px 14px; }
+
+      /* 无计算过程数据 */
+      .rd-viz-empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 28px 16px;
+        color: var(--text-3);
+        font-size: 13px;
+        background: #fafcff;
+        border: 1px dashed var(--line);
         border-radius: 8px;
       }
 
-      .rd-window-meta>div {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-      }
-
-      .rd-wm-label {
-        font-size: 10.5px;
-        color: var(--text-3);
-      }
-
-      .rd-wm-value {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text-0);
-      }
-
-      .rd-wm-value.trig {
-        color: var(--warn);
-      }
-
-      .rd-wm-value.ok {
-        color: var(--ok);
-      }
-
-      /* 核心参数格:占两列,键值对内联换行 */
-      .rd-wm-params {
-        grid-column: span 2;
-      }
-      .rd-wm-param-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 3px 14px;
-        font-weight: 500;
-      }
-      .rd-wm-param {
-        white-space: nowrap;
-        font-size: 12.5px;
-        color: var(--text-2);
-      }
-      .rd-wm-param b {
-        color: var(--text-0);
-        margin-left: 3px;
-        font-weight: 700;
-      }
-      .rd-wm-dim {
-        color: var(--text-3);
-      }
-
-      /* F_Value 列表 */
-      .rd-values-title {
-        font-size: 11px;
-        color: var(--text-2);
-        margin-bottom: 8px;
-        letter-spacing: 0.3px;
-      }
-
-      .rd-values-list {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
 
       .val-row {
         display: grid;
@@ -613,6 +589,20 @@
 
       .rd-viz-btn:active {
         transform: translateY(1px);
+      }
+
+      .rd-viz-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #f5f7fb;
+        border-color: var(--line);
+        box-shadow: none;
+        transform: none;
+      }
+      .rd-viz-btn:disabled:hover {
+        background: #f5f7fb;
+        border-color: var(--line);
+        box-shadow: none;
       }
 
       /* ─── 建筑信息面板(现位于左栏顶部) ─── */
