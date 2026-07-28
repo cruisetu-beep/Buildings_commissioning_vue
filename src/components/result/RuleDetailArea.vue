@@ -81,6 +81,10 @@ const verdictTrig = computed(() => {
             <span class="rd-wm-label">窗口条件</span>
             <span class="rd-wm-value">{{ w.condition || "—" }}</span>
           </div>
+          <div>
+            <span class="rd-wm-label">窗口判定</span>
+            <span class="rd-wm-value" :class="verdictTrig ? 'trig' : 'ok'">{{ verdictText }}</span>
+          </div>
           <div class="rd-wm-params">
             <span class="rd-wm-label">核心参数</span>
             <span class="rd-wm-value rd-wm-param-list">
@@ -89,10 +93,6 @@ const verdictTrig = computed(() => {
                 {{ v.name }} <b class="mono">{{ v.value }}{{ v.unit }}</b>
               </span>
             </span>
-          </div>
-          <div>
-            <span class="rd-wm-label">窗口判定</span>
-            <span class="rd-wm-value" :class="verdictTrig ? 'trig' : 'ok'">{{ verdictText }}</span>
           </div>
         </div>
 
