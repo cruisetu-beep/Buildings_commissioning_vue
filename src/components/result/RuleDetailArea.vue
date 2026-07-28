@@ -85,8 +85,10 @@ const metrics = computed(() => rj.value?.metrics || []);
         </button>
       </div>
 
-      <!-- 竖排:图表 → 结论 → 指标 → 窗口信息 -->
+      <!-- 竖排:结论 → 指标 → 图表(图在最下) -->
       <div class="rd-viz-stack">
+        <VerdictCard :triggered="triggered" :conclusion="conclusion" :rule-code="rule.code" />
+        <MetricsPanel :metrics="metrics" />
         <div class="rd-viz-chart card glow">
           <RuleVisualization
             :rule-code="rule.code"
@@ -95,8 +97,6 @@ const metrics = computed(() => rj.value?.metrics || []);
             :condition="activeWindow?.condition || '—'"
           />
         </div>
-        <VerdictCard :triggered="triggered" :conclusion="conclusion" :rule-code="rule.code" />
-        <MetricsPanel :metrics="metrics" />
       </div>
     </template>
 
