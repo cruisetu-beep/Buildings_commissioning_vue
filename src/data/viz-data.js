@@ -78,10 +78,24 @@ export const VIZ_TYPE_LABEL = {
   A: "聚类分析", B: "回归拟合", C: "日对对比", D: "分布统计", E: "作息模式",
 };
 
+// 温度档位(占位用;真实计算条件由后端接口返回)
+const tempBand = (db) => {
+  const t = parseFloat(db);
+  if (isNaN(t)) return "";
+  if (t < 12) return "低温";
+  if (t <= 26) return "中温";
+  return "高温";
+};
+
 // 小工具:构造一个窗口对象;"分析窗口"字段统一在此注入,避免各处重复。
+// condition = 计算条件(占位:有干球时按气象生成,否则给对比日标签;后端就绪后替换)。
 const win = (period, drybulb, wetbulb, resultJSON) => ({
   period,
   weather: { drybulb, wetbulb },
+  condition:
+    drybulb && drybulb !== "—"
+      ? `等温窗 · ${tempBand(drybulb)} t≈${drybulb}`
+      : "邻近气象对比日",
   resultJSON: {
     ...resultJSON,
     windowInfo: { "分析窗口": period, ...(resultJSON.windowInfo || {}) },

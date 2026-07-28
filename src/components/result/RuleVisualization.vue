@@ -10,22 +10,19 @@ import RawDataView from "./RawDataView.vue";
 import { buildChartOption } from "../../data/viz-chart-options.js";
 
 const props = defineProps({
-  ruleCode: { type: String, required: true },
-  ruleName: { type: String, default: "" },
+  ruleCode: { type: String, required: true }, // 用于切换时重置视图
   visualType: { type: String, required: true }, // A/B/C/D/E
   chart: { type: Object, default: () => ({}) },  // resultJSON.chart
-  buildId: { type: String, default: "" },
-  buildingName: { type: String, default: "" },
-  windowLabel: { type: String, default: "" },
+  condition: { type: String, default: "" },      // 计算条件(来自窗口/接口)
 });
 
 const viewMode = ref("chart"); // "chart" | "data"
 
 const option = computed(() => buildChartOption(props.visualType, props.chart));
 
-// 切换规则或窗口时自动回到图表视图
+// 切换规则或窗口(条件随窗口变)时自动回到图表视图
 watch(
-  () => [props.ruleCode, props.windowLabel],
+  () => [props.ruleCode, props.condition],
   () => { viewMode.value = "chart"; }
 );
 </script>
@@ -33,19 +30,9 @@ watch(
 <template>
   <div class="viz-chart-wrap">
     <div class="viz-chart-head">
-      <div>
-        <div class="viz-chart-title">
-          <span class="viz-chart-code mono">{{ ruleCode }}</span>
-          <span>{{ ruleName }}</span>
-        </div>
-        <div class="viz-chart-sub">
-          <Icon name="building" :size="11" stroke="var(--text-2)" />
-          <span class="mono">{{ buildId }}</span>
-          <span>· {{ buildingName }}</span>
-          <span class="chart-sub-sep">·</span>
-          <Icon name="target" :size="11" stroke="var(--text-2)" />
-          <span>{{ windowLabel }}</span>
-        </div>
+      <div class="viz-chart-condition">
+        <span class="viz-cond-label">计算条件</span>
+        <span class="viz-cond-value">{{ condition || "—" }}</span>
       </div>
       <div class="viz-chart-actions">
         <!-- 视图切换 toggle:图表 / 原始数据 -->

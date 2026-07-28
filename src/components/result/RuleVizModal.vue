@@ -34,11 +34,6 @@ const activeWindow = computed(() => windows.value[windowIdx.value] || null);
 const rj = computed(() => activeWindow.value?.resultJSON || null);
 
 const displayName = computed(() => props.result?.ruleName || rule.value?.name || "");
-const activePeriodStr = computed(() => {
-  const w = activeWindow.value;
-  if (!w) return "";
-  return `${windowIdx.value + 1}/${windows.value.length} · ${w.period}`;
-});
 
 // 右栏三面板均取自当前窗口 resultJSON
 const triggered = computed(() => rj.value?.category === "目标调适");
@@ -109,12 +104,9 @@ const windowInfo = computed(() => rj.value?.windowInfo || {});
             <div class="viz-left card glow">
               <RuleVisualization
                 :rule-code="rule.code"
-                :rule-name="displayName"
                 :visual-type="rule.visualType"
                 :chart="rj?.chart || {}"
-                :build-id="building.buildId"
-                :building-name="building.name"
-                :window-label="activePeriodStr"
+                :condition="activeWindow?.condition || '—'"
               />
             </div>
             <div class="viz-right">

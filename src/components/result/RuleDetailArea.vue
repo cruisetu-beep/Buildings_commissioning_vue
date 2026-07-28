@@ -14,13 +14,11 @@ import CategoryStatusChip from "../common/CategoryStatusChip.vue";
 import RuleVisualization from "./RuleVisualization.vue";
 import VerdictCard from "./VerdictCard.vue";
 import MetricsPanel from "./MetricsPanel.vue";
-import WindowInfoPanel from "./WindowInfoPanel.vue";
 import { getVizRule, VIZ_TYPE_LABEL } from "../../data/viz-data.js";
 import "../../assets/styles/rule-viz.css"; // 面板样式(verdict/metrics/window/viz-chart)依赖此表
 
 const props = defineProps({
   result: { type: Object, default: null },
-  building: { type: Object, default: () => ({}) },
 });
 
 const windowIdx = ref(0);
@@ -31,18 +29,10 @@ const windows = computed(() => rule.value?.windows || []);
 const activeWindow = computed(() => windows.value[windowIdx.value] || null);
 const rj = computed(() => activeWindow.value?.resultJSON || null);
 
-const displayName = computed(() => props.result?.ruleName || rule.value?.name || "");
-const activePeriodStr = computed(() => {
-  const w = activeWindow.value;
-  if (!w) return "";
-  return `${windowIdx.value + 1}/${windows.value.length} · ${w.period}`;
-});
-
-// 结论/指标/窗口面板均取自当前窗口 resultJSON
+// 结论/指标面板取自当前窗口 resultJSON
 const triggered = computed(() => rj.value?.category === "目标调适");
 const conclusion = computed(() => rj.value?.reason || "");
 const metrics = computed(() => rj.value?.metrics || []);
-const windowInfo = computed(() => rj.value?.windowInfo || {});
 </script>
 
 <template>
@@ -100,17 +90,13 @@ const windowInfo = computed(() => rj.value?.windowInfo || {});
         <div class="rd-viz-chart card glow">
           <RuleVisualization
             :rule-code="rule.code"
-            :rule-name="displayName"
             :visual-type="rule.visualType"
             :chart="rj?.chart || {}"
-            :build-id="building.buildId"
-            :building-name="building.name"
-            :window-label="activePeriodStr"
+            :condition="activeWindow?.condition || '—'"
           />
         </div>
         <VerdictCard :triggered="triggered" :conclusion="conclusion" :rule-code="rule.code" />
         <MetricsPanel :metrics="metrics" />
-        <WindowInfoPanel :info="windowInfo" />
       </div>
     </template>
 
