@@ -463,9 +463,9 @@
         color: var(--ok);
       }
 
-      /* 核心参数格:独占整行,键值对内联换行(容纳 5+ 参数) */
+      /* 核心参数格:占两列,键值对内联换行 */
       .rd-wm-params {
-        grid-column: 1 / -1;
+        grid-column: span 2;
       }
       .rd-wm-param-list {
         display: flex;
