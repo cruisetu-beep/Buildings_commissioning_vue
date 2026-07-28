@@ -49,19 +49,6 @@ const w = computed(() => props.result?.windows?.[windowIdx.value]);
       </div>
     </div>
 
-    <!-- 判定结论 -->
-    <div class="rd-conclusion" :class="{ trig: result.category === '目标调适' }">
-      <Icon
-        :name="result.category === '目标调适' ? 'alert' : 'info'"
-        :size="14"
-        :stroke="result.category === '目标调适' ? 'var(--warn)' : 'var(--brand)'"
-      />
-      <div class="rd-conclusion-text">
-        <span>{{ result.detailResult }}</span>
-        <span v-if="result.thresholdValue" class="rd-conclusion-threshold-text"> · {{ result.thresholdValue }}</span>
-      </div>
-    </div>
-
     <!-- 窗口明细(若有窗口) -->
     <template v-if="result.windows.length > 0">
       <div class="rd-section-title">
