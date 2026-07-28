@@ -20,6 +20,18 @@ const windowIdx = ref(0);
 watch(() => props.result?.ruleCode, () => { windowIdx.value = 0; });
 
 const w = computed(() => props.result?.windows?.[windowIdx.value]);
+
+// 窗口判定文字(正常/目标调适等,后端字段优先;缺省时按触发态兜底)
+const verdictText = computed(() => {
+  const win = w.value;
+  if (!win) return "";
+  return win.verdict || (win.isTriggered ? "目标调适" : "正常");
+});
+const verdictTrig = computed(() => {
+  const win = w.value;
+  if (!win) return false;
+  return win.verdict ? ["目标调适", "待核查"].includes(win.verdict) : !!win.isTriggered;
+});
 </script>
 
 <template>
@@ -66,18 +78,21 @@ const w = computed(() => props.result?.windows?.[windowIdx.value]);
             <span class="rd-wm-value mono">{{ w.period }}</span>
           </div>
           <div>
-            <span class="rd-wm-label">干球均值</span>
-            <span class="rd-wm-value mono">{{ w.weather.drybulb }}</span>
+            <span class="rd-wm-label">窗口条件</span>
+            <span class="rd-wm-value">{{ w.condition || "—" }}</span>
           </div>
-          <div>
-            <span class="rd-wm-label">湿球均值</span>
-            <span class="rd-wm-value mono">{{ w.weather.wetbulb }}</span>
+          <div class="rd-wm-params">
+            <span class="rd-wm-label">核心参数</span>
+            <span class="rd-wm-value rd-wm-param-list">
+              <span v-if="!w.values || !w.values.length" class="rd-wm-dim">—</span>
+              <span v-for="(v, i) in w.values" :key="i" class="rd-wm-param">
+                {{ v.name }} <b class="mono">{{ v.value }}{{ v.unit }}</b>
+              </span>
+            </span>
           </div>
           <div>
             <span class="rd-wm-label">窗口判定</span>
-            <span class="rd-wm-value" :class="w.isTriggered ? 'trig' : 'ok'">
-              {{ w.isTriggered ? "⚠ 触发" : "✓ 未触发" }}
-            </span>
+            <span class="rd-wm-value" :class="verdictTrig ? 'trig' : 'ok'">{{ verdictText }}</span>
           </div>
         </div>
 

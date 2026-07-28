@@ -463,6 +463,30 @@
         color: var(--ok);
       }
 
+      /* 核心参数格:占两列,键值对内联换行 */
+      .rd-wm-params {
+        grid-column: span 2;
+      }
+      .rd-wm-param-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px 14px;
+        font-weight: 500;
+      }
+      .rd-wm-param {
+        white-space: nowrap;
+        font-size: 12.5px;
+        color: var(--text-2);
+      }
+      .rd-wm-param b {
+        color: var(--text-0);
+        margin-left: 3px;
+        font-weight: 700;
+      }
+      .rd-wm-dim {
+        color: var(--text-3);
+      }
+
       /* F_Value 列表 */
       .rd-values-title {
         font-size: 11px;
