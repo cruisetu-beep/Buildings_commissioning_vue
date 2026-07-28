@@ -208,6 +208,17 @@
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line-soft);
 }
+.mp-title.mp-clickable { cursor: pointer; user-select: none; }
+.mp-count {
+  margin-left: auto;
+  font-size: 11px; font-weight: 600; color: var(--text-2);
+  padding: 1px 7px; border-radius: 999px;
+  background: var(--bg-2);
+}
+.mp-toggle-icon { flex: none; }
+.metrics-panel.mp-collapsed .mp-title {
+  margin-bottom: 0; padding-bottom: 0; border-bottom: none;
+}
 .mp-list {
   display: flex; flex-direction: column; gap: 8px;
 }
