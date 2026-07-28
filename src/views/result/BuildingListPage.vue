@@ -38,7 +38,8 @@ const counts = computed(() => {
     target: buildings.value.filter((b) => b.category === "目标调适").length,
     check: buildings.value.filter((b) => b.category === "待核查").length,
     normal: buildings.value.filter((b) => b.category === "正常").length,
-    nodata: buildings.value.filter((b) => b.category === "无节点" || b.category === "无数据").length,
+    nodata: buildings.value.filter((b) => ["无节点", "无数据", "配置错误", "数据异常"].includes(b.category)).length,
+    healed: buildings.value.filter((b) => b.category === "虚拟预测愈合").length,
     all,
   };
 });
@@ -50,7 +51,8 @@ const filtered = computed(() => {
     if (quick.value === "target" && b.category !== "目标调适") return false;
     if (quick.value === "check" && b.category !== "待核查") return false;
     if (quick.value === "normal" && b.category !== "正常") return false;
-    if (quick.value === "nodata" && !(b.category === "无节点" || b.category === "无数据")) return false;
+    if (quick.value === "nodata" && !["无节点", "无数据", "配置错误", "数据异常"].includes(b.category)) return false;
+    if (quick.value === "healed" && b.category !== "虚拟预测愈合") return false;
 
     if (filters.funcs.length > 0 && !filters.funcs.includes(b.buildFunc)) return false;
     if (b.hitCount < filters.hitMin || b.hitCount > filters.hitMax) return false;

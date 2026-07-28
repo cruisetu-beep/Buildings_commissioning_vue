@@ -17,7 +17,7 @@ onMounted(() => {
   initRuleMetaMap();
 });
 
-const dimmed = computed(() => props.building.category === "无节点" || props.building.category === "无数据");
+const dimmed = computed(() => ["无节点", "无数据", "配置错误", "数据异常"].includes(props.building.category));
 
 /* ─── 命中数量分级色 ───
    4/5/6/7 四档严格取自设计稿 token;0 与 1-3 是设计稿未覆盖的
@@ -60,6 +60,9 @@ const VERDICT_COLORS = {
   "正常": "#18a572",
   "无节点": "#94a3b8",
   "无数据": "#cbd5e1",
+  "配置错误": "#e08b2f",
+  "数据异常": "#d97706",
+  "虚拟预测愈合": "#3b82f6",
 };
 const verdictColor = computed(() => VERDICT_COLORS[props.building.category] || "#94a3b8");
 

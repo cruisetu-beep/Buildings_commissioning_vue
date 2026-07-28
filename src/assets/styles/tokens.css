@@ -54,6 +54,9 @@
     --status-normal: #18a572;   /* 正常 */
     --status-nonode: #94a3b8;   /* 无节点 */
     --status-nodata: #cbd5e1;   /* 无数据 */
+    --status-config:   #e08b2f; /* 配置错误(橙) */
+    --status-abnormal: #d97706; /* 数据异常(琥珀橙) */
+    --status-healed:   #3b82f6; /* 虚拟预测愈合(蓝) */
 
     /* ─── 调适模块专属:命中数徽章分档(未来 4.1 用) ─── */
     --hit-7plus: #b91c1c;

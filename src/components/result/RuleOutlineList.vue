@@ -13,13 +13,14 @@ const props = defineProps({
 });
 const emit = defineEmits(["select"]);
 
-const groupOrder = ["目标调适", "待核查", "正常", "无节点"];
-const groups = computed(() => ({
-  "目标调适": props.results.filter((r) => r.category === "目标调适"),
-  "待核查": props.results.filter((r) => r.category === "待核查"),
-  "正常": props.results.filter((r) => r.category === "正常"),
-  "无节点": props.results.filter((r) => r.category === "无节点"),
-}));
+const groupOrder = ["目标调适", "待核查", "虚拟预测愈合", "正常", "配置错误", "数据异常", "无节点", "无数据"];
+const groups = computed(() => {
+  const g = Object.fromEntries(groupOrder.map((k) => [k, []]));
+  props.results.forEach((r) => {
+    if (g[r.category]) g[r.category].push(r);
+  });
+  return g;
+});
 
 const expanded = ref(new Set(["目标调适", "待核查"]));
 const toggleGroup = (g) => {

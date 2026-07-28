@@ -15,7 +15,8 @@ const opts = computed(() => [
   { key: "target", label: "目标调适全量", hint: "F_IsTarget = 1", color: "var(--status-target)", bg: "rgba(220,38,38,0.06)", bd: "rgba(220,38,38,0.25)" },
   { key: "check", label: "待核查", hint: "触发窗口不足", color: "var(--status-check)", bg: "rgba(14,165,233,0.06)", bd: "rgba(14,165,233,0.25)" },
   { key: "normal", label: "正常", hint: "未触发", color: "var(--status-normal)", bg: "rgba(24,165,114,0.06)", bd: "rgba(24,165,114,0.25)" },
-  { key: "nodata", label: "无节点/无数据", hint: "节点缺失或无数据", color: "#64748b", bg: "rgba(100,116,139,0.06)", bd: "rgba(100,116,139,0.25)" },
+  { key: "nodata", label: "无效/异常", hint: "无节点/无数据/配置错误/数据异常", color: "#64748b", bg: "rgba(100,116,139,0.06)", bd: "rgba(100,116,139,0.25)" },
+  { key: "healed", label: "虚拟预测愈合", hint: "软传感器估算 · 仅供参考", color: "var(--status-healed)", bg: "rgba(59,130,246,0.06)", bd: "rgba(59,130,246,0.25)" },
 ]);
 </script>
 

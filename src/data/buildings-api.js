@@ -36,7 +36,13 @@ async function httpGet(url, params = {}) {
 export async function fetchBuildings(params = {}) {
   try {
     const data = await httpGet(`${API_PREFIX}/getBuildingList`, params);
-    return data || [];
+    const list = data || [];
+    // 演示:?allrules=1 时给末尾 3 栋楼打上新判定类别,便于验证 4.1 色卡/筛选(可删除)
+    if (isAllRulesPreview() && list.length >= 3) {
+      const cats = ["配置错误", "数据异常", "虚拟预测愈合"];
+      cats.forEach((cat, i) => { list[list.length - 1 - i].category = cat; });
+    }
+    return list;
   } catch (error) {
     console.error("fetchBuildings failed:", error);
     return [];
@@ -95,6 +101,12 @@ function backfillAllVizRules(data) {
       _vizPreview: true,
     });
     added += 1;
+  });
+  // 演示:给 3 条规则打上新判定类别,便于验证色卡/大纲分组(可删除)
+  const DEMO_NEW_CATS = { C03: "配置错误", C05: "数据异常", D02: "虚拟预测愈合" };
+  Object.entries(DEMO_NEW_CATS).forEach(([code, cat]) => {
+    const r = results.find((x) => x.ruleCode === code);
+    if (r) { r.category = cat; r._vizPreview = true; }
   });
   console.info(`[allrules] 演示:新增 ${added} 条 / 提升 ${promoted} 条隐藏规则(结果共 ${results.length} 条)`);
   return data;
