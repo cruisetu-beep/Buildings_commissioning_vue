@@ -106,8 +106,8 @@
 
 /* ─── 规则详细弹窗 ─── */
 .modal-rule-detail {
-  width: min(760px, 94vw);
-  max-height: 88vh;
+  width: min(920px, 95vw);
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
 }
