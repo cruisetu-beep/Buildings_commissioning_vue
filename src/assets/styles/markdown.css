@@ -1,0 +1,185 @@
+/* ═══════════════════════════════════════════════════════════════
+   markdown.css · MarkdownView 渲染样式 + 规则详细弹窗(rdm-*)样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Markdown 正文 ─── */
+.markdown-view {
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--text-1);
+  word-break: break-word;
+}
+.markdown-view > *:first-child { margin-top: 0; }
+.markdown-view > *:last-child { margin-bottom: 0; }
+
+.markdown-view h1,
+.markdown-view h2,
+.markdown-view h3,
+.markdown-view h4 {
+  color: var(--text-0);
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 18px 0 8px;
+}
+.markdown-view h1 { font-size: 17px; }
+.markdown-view h2 { font-size: 15px; }
+.markdown-view h3 { font-size: 14px; }
+.markdown-view h4 { font-size: 13px; }
+
+.markdown-view p { margin: 8px 0; }
+
+.markdown-view ul,
+.markdown-view ol {
+  margin: 8px 0;
+  padding-left: 22px;
+}
+.markdown-view li { margin: 5px 0; }
+.markdown-view li > ul,
+.markdown-view li > ol { margin: 4px 0; }
+
+.markdown-view strong { color: var(--text-0); font-weight: 700; }
+.markdown-view em { font-style: italic; }
+
+.markdown-view a { color: var(--brand); text-decoration: none; }
+.markdown-view a:hover { text-decoration: underline; }
+
+/* 行内代码 */
+.markdown-view code {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.88em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--brand);
+  background: rgba(47, 127, 255, 0.08);
+  border: 1px solid rgba(47, 127, 255, 0.16);
+}
+/* 代码块 */
+.markdown-view pre {
+  margin: 10px 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  background: #f5f8fd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.markdown-view pre code {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-1);
+}
+
+.markdown-view blockquote {
+  margin: 10px 0;
+  padding: 4px 14px;
+  color: var(--text-2);
+  border-left: 3px solid var(--line-strong);
+  background: #fafcff;
+}
+
+.markdown-view table {
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 12.5px;
+}
+.markdown-view th,
+.markdown-view td {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  text-align: left;
+}
+.markdown-view th { background: #f5f8fd; font-weight: 600; color: var(--text-0); }
+
+.markdown-view hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 16px 0;
+}
+
+/* 块级公式:居中 + 允许横向滚动 */
+.markdown-view .katex-display {
+  margin: 14px 0;
+  padding: 6px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* ─── 规则详细弹窗 ─── */
+.modal-rule-detail {
+  width: min(760px, 94vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+.rdm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.rdm-title-row { display: flex; align-items: center; gap: 10px; }
+.rdm-title-row .modal-title { font-size: 15px; }
+.rdm-close {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-2);
+}
+.rdm-close:hover { background: #f5f7fb; border-color: var(--line-strong); }
+
+.rdm-body { overflow-y: auto; }
+
+/* 基础信息 */
+.rdm-basic {
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.rdm-rule-name {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 15px; font-weight: 700; color: var(--text-0);
+  margin-bottom: 12px;
+}
+.rdm-code {
+  padding: 2px 9px;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
+  color: var(--brand);
+  background: rgba(47, 127, 255, 0.10);
+  border: 1px solid rgba(47, 127, 255, 0.30);
+  border-radius: 5px;
+}
+.rdm-fields {
+  display: flex; flex-wrap: wrap; gap: 10px 28px;
+}
+.rdm-field { display: flex; align-items: baseline; gap: 8px; }
+.rdm-field-label { font-size: 11.5px; color: var(--text-3); }
+.rdm-field-value { font-size: 13px; font-weight: 600; color: var(--text-0); }
+
+/* 算法与原理:四小节 */
+.rdm-sections-head {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.4px;
+  color: var(--brand);
+  margin-bottom: 10px;
+}
+.rdm-section {
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: #fafcff;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+}
+.rdm-section:last-child { margin-bottom: 0; }
+.rdm-section-title {
+  font-size: 13px; font-weight: 700; color: var(--text-0);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.rdm-empty {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 40px 16px;
+  color: var(--text-3); font-size: 13px;
+}

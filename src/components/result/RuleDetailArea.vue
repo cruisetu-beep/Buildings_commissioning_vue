@@ -20,6 +20,7 @@ import "../../assets/styles/rule-viz.css"; // 面板样式(verdict/metrics/windo
 const props = defineProps({
   result: { type: Object, default: null },
 });
+const emit = defineEmits(["open-detail"]);
 
 const windowIdx = ref(0);
 watch(() => props.result?.ruleCode, () => { windowIdx.value = 0; });
@@ -47,8 +48,8 @@ const metrics = computed(() => rj.value?.metrics || []);
       <div class="rd-head-title">
         <span class="rd-code mono">{{ result.ruleCode }}</span>
         <span class="rd-name">{{ result.ruleName }}</span>
-        <button class="rd-viz-btn" disabled title="规则详细(暂未开放)">
-          <Icon name="flask" :size="13" />
+        <button class="rd-viz-btn" title="查看规则详细" @click="emit('open-detail', result.ruleCode)">
+          <Icon name="rules" :size="13" />
           <span>规则详细</span>
         </button>
       </div>

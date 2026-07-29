@@ -11,6 +11,7 @@ import RuleOutlineList from "../../components/result/RuleOutlineList.vue";
 import RuleDetailArea from "../../components/result/RuleDetailArea.vue";
 import BuildingInfoPanel from "../../components/result/BuildingInfoPanel.vue";
 import RuleVizModal from "../../components/result/RuleVizModal.vue";
+import RuleDetailModal from "../../components/result/RuleDetailModal.vue";
 import { fetchBuildingById } from "../../data/buildings-api.js";
 import { initRuleMetaMap } from "../../data/rules-api.js";
 
@@ -28,6 +29,8 @@ const activeCode = ref(null);
 
 // 算法可视化弹窗 · 由 RuleDetailArea 里的"计算过程"按钮打开
 const vizModalCode = ref(null);
+// 规则详细弹窗 · 由 RuleDetailArea 里的"规则详细"按钮打开
+const ruleDetailCode = ref(null);
 
 onMounted(async () => {
   await initRuleMetaMap(); // 确保首先拉取了规则列表以供同步解析
@@ -55,6 +58,10 @@ const onBack = () => router.push("/result");
 
 const handleJumpToViz = (ruleCode) => {
   vizModalCode.value = ruleCode;
+};
+
+const handleOpenDetail = (ruleCode) => {
+  ruleDetailCode.value = ruleCode;
 };
 </script>
 
@@ -108,7 +115,7 @@ const handleJumpToViz = (ruleCode) => {
         <RuleOutlineList :results="results" :active-code="activeCode" @select="(c) => (activeCode = c)" />
       </div>
       <div class="bd-mid card glow">
-        <RuleDetailArea :result="activeResult" @jump-to-viz="handleJumpToViz" />
+        <RuleDetailArea :result="activeResult" @jump-to-viz="handleJumpToViz" @open-detail="handleOpenDetail" />
       </div>
     </div>
 
@@ -119,6 +126,14 @@ const handleJumpToViz = (ruleCode) => {
       :building="building"
       :result="activeResult"
       @close="vizModalCode = null"
+    />
+
+    <!-- 规则详细弹窗 -->
+    <RuleDetailModal
+      v-if="ruleDetailCode"
+      :rule-code="ruleDetailCode"
+      :rule-name="activeResult?.ruleName || ''"
+      @close="ruleDetailCode = null"
     />
   </div>
 
