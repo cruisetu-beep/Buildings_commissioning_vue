@@ -5,7 +5,35 @@
    不再依赖外部 V1~V5 映射)。buildChartOption 按 visualType 分发。
    批次1:A 聚类 / B 回归 / D 分布;C(批次2)、E(批次3)随后补齐。
    ═══════════════════════════════════════════════════════════════ */
-import { CHART_THEME } from "./viz-data.js";
+const CHART_THEME = {
+  color: ["#2f7fff", "#7a5cff", "#0ea5e9", "#10b981", "#f97316", "#e54e6e", "#06b6d4", "#8b5cf6"],
+  backgroundColor: "transparent",
+  textStyle: {
+    fontFamily: '"Noto Sans SC", "PingFang SC", sans-serif',
+    color: "#38496b",
+  },
+  title: {
+    textStyle: { color: "#0f1d3d", fontSize: 13, fontWeight: 600 },
+    subtextStyle: { color: "#6a7da3", fontSize: 11 },
+  },
+  legend: {
+    textStyle: { color: "#38496b", fontSize: 12 },
+    itemGap: 20, itemWidth: 14, itemHeight: 8,
+  },
+  xAxis: {
+    axisLine: { lineStyle: { color: "rgba(60,110,200,0.18)" } },
+    axisLabel: { color: "#6a7da3", fontSize: 11 },
+    nameTextStyle: { color: "#38496b", fontSize: 11, padding: [8, 0, 0, 0] },
+    splitLine: { show: true, lineStyle: { color: "rgba(60,110,200,0.06)" } },
+  },
+  yAxis: {
+    axisLine: { show: false },
+    axisTick: { show: false },
+    axisLabel: { color: "#6a7da3", fontSize: 11 },
+    nameTextStyle: { color: "#38496b", fontSize: 11, padding: [0, 0, 8, 0] },
+    splitLine: { show: true, lineStyle: { color: "rgba(60,110,200,0.06)" } },
+  },
+};
 
 const TOOLTIP = {
   backgroundColor: "rgba(15,29,61,0.92)",
@@ -44,14 +72,17 @@ function highlightGraphic(hl, { right = 60, top = 45 } = {}) {
 
 /* ─── A 类 · K-means 散点(两簇着色 + 均值参考线) ─── */
 export function buildClusterOption(c) {
+  const lowLabel = c.lowLabel;
+  const highLabel = c.highLabel;
+
   return {
     ...CHART_THEME,
     tooltip: {
       ...TOOLTIP, trigger: "item",
       formatter: (p) => `<b>${p.seriesName}</b><br/>温度: ${p.value[0]} ℃<br/>电耗: ${p.value[1]} kW`,
     },
-    legend: { ...CHART_THEME.legend, top: 8, right: 20, itemGap: 24, data: ["低工况簇", "高工况簇"] },
-    grid: { top: 40, bottom: 55, left: 68, right: 30 },
+    legend: { ...CHART_THEME.legend, top: 8, right: 20, itemGap: 24, data: [lowLabel, highLabel] },
+    grid: { top: 40, bottom: 55, left: 68, right: 70 },
     xAxis: {
       ...CHART_THEME.xAxis, type: "value",
       name: c.xName, nameLocation: "middle", nameGap: 30,
@@ -64,27 +95,35 @@ export function buildClusterOption(c) {
     },
     series: [
       {
-        name: "低工况簇", type: "scatter", data: c.low, symbolSize: 9,
+        name: lowLabel, type: "scatter", data: c.low, symbolSize: 9,
         itemStyle: { color: "#7a5cff", opacity: 0.72, borderColor: "#5b3fd6", borderWidth: 1 },
         markLine: {
           symbol: "none", silent: true,
           lineStyle: { color: "#7a5cff", type: "dashed", width: 1, opacity: 0.5 },
-          label: { color: "#7a5cff", fontSize: 10, formatter: `低簇 ${c.lowMean} kW` },
+          label: {
+            color: "#7a5cff", fontSize: 10,
+            position: "insideEndTop",
+            formatter: `低簇 ${c.lowMean} kW`
+          },
           data: [{ yAxis: c.lowMean }],
         },
       },
       {
-        name: "高工况簇", type: "scatter", data: c.high, symbolSize: 9,
+        name: highLabel, type: "scatter", data: c.high, symbolSize: 9,
         itemStyle: { color: "#2f7fff", opacity: 0.72, borderColor: "#1860d4", borderWidth: 1 },
         markLine: {
           symbol: "none", silent: true,
           lineStyle: { color: "#2f7fff", type: "dashed", width: 1, opacity: 0.5 },
-          label: { color: "#2f7fff", fontSize: 10, formatter: `高簇 ${c.highMean} kW` },
+          label: {
+            color: "#2f7fff", fontSize: 10,
+            position: "insideEndTop",
+            formatter: `高簇 ${c.highMean} kW`
+          },
           data: [{ yAxis: c.highMean }],
         },
       },
     ],
-    graphic: annotationGraphic(c.annotation, { right: 45, top: 45, color: "#d97706" }),
+    graphic: highlightGraphic(c.highlight, { right: 50, top: 44 }),
   };
 }
 
@@ -127,6 +166,9 @@ export function buildRegressionOption(c) {
 
 /* ─── D 类 · 分布直方图(强调峰值区 + 指标注记) ─── */
 export function buildDistributionOption(c) {
+  const maxCount = Math.max(...c.buckets.map(b => b.count || 0), 0);
+  const yMax = maxCount > 0 ? Math.ceil(maxCount * 1.2) : undefined;
+
   return {
     ...CHART_THEME,
     tooltip: { ...TOOLTIP, trigger: "axis", axisPointer: { type: "shadow" } },
@@ -138,7 +180,11 @@ export function buildDistributionOption(c) {
       name: c.xName, nameLocation: "middle", nameGap: 32,
       axisLabel: { ...CHART_THEME.xAxis.axisLabel, interval: 0 },
     },
-    yAxis: { ...CHART_THEME.yAxis, type: "value", name: c.yName, nameLocation: "middle", nameGap: 42 },
+    yAxis: { 
+      ...CHART_THEME.yAxis, type: "value", 
+      name: c.yName, nameLocation: "middle", nameGap: 42,
+      max: yMax
+    },
     series: [
       {
         name: c.yName, type: "bar", barWidth: "72%",
@@ -149,15 +195,15 @@ export function buildDistributionOption(c) {
               i === c.zeroIdx
                 ? "#94a3b8"
                 : (c.emphasisIdx || []).includes(i)
-                ? { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#06b6d4" }, { offset: 1, color: "#0891b2" }] }
-                : "rgba(6,182,212,0.42)",
+                  ? { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#06b6d4" }, { offset: 1, color: "#0891b2" }] }
+                  : "rgba(6,182,212,0.42)",
             borderRadius: [4, 4, 0, 0],
           },
         })),
         label: { show: true, position: "top", color: "#38496b", fontSize: 10, formatter: (p) => (p.value > 5 ? p.value : "") },
       },
     ],
-    graphic: annotationGraphic(c.annotation, { right: 40, top: 45, color: "#0891b2" }),
+    graphic: highlightGraphic(c.highlight, { right: 50, top: 44 }),
   };
 }
 
@@ -166,6 +212,10 @@ export function buildDayPairOption(c) {
   const names = c.series.map((s) => s.name);
   const aData = c.series.map((s) => s.dayA);
   const bData = c.series.map((s) => s.dayB);
+
+  const maxVal = Math.max(...aData, ...bData, 0);
+  const yMax = maxVal > 0 ? Math.ceil(maxVal * 1.3) : undefined;
+
   return {
     ...CHART_THEME,
     tooltip: {
@@ -183,7 +233,11 @@ export function buildDayPairOption(c) {
       name: c.xName, nameLocation: "middle", nameGap: 34,
       axisLabel: { ...CHART_THEME.xAxis.axisLabel, interval: 0, fontSize: 10 },
     },
-    yAxis: { ...CHART_THEME.yAxis, type: "value", name: c.yName, nameLocation: "middle", nameGap: 46 },
+    yAxis: {
+      ...CHART_THEME.yAxis, type: "value",
+      name: c.yName, nameLocation: "middle", nameGap: 46,
+      max: yMax
+    },
     series: [
       {
         name: c.dayALabel, type: "bar", data: aData, barGap: "12%", barWidth: "32%",
@@ -203,6 +257,11 @@ export function buildDayPairOption(c) {
 /* ─── E 类 · 作息模式 24h 双折线(工作日 vs 节假日/基线) ─── */
 export function buildScheduleOption(c) {
   const hours = Array.from({ length: 24 }, (_, i) => `${i}`);
+
+  const allVals = [...(c.seriesA?.data || []), ...(c.seriesB?.data || [])].map(v => parseFloat(v) || 0);
+  const maxVal = Math.max(...allVals, 0);
+  const yMax = maxVal > 0 ? Math.ceil(maxVal * 1.2) : undefined;
+
   return {
     ...CHART_THEME,
     tooltip: {
@@ -220,7 +279,11 @@ export function buildScheduleOption(c) {
       name: c.xName || "时刻 (h)", nameLocation: "middle", nameGap: 30,
       axisLabel: { ...CHART_THEME.xAxis.axisLabel, interval: 3 },
     },
-    yAxis: { ...CHART_THEME.yAxis, type: "value", name: c.yName || "逐时功率 (kW)", nameLocation: "middle", nameGap: 44 },
+    yAxis: {
+      ...CHART_THEME.yAxis, type: "value",
+      name: c.yName || "逐时功率 (kW)", nameLocation: "middle", nameGap: 44,
+      max: yMax
+    },
     series: [
       {
         name: c.seriesA.name, type: "line", data: c.seriesA.data, smooth: true, showSymbol: false,
@@ -237,14 +300,34 @@ export function buildScheduleOption(c) {
   };
 }
 
-/* ─── 分发入口:按 visualType 选 builder ─── */
+/* ─── 分发入口:按 visualType 选 builder (具备强力防崩安全过滤) ─── */
 export function buildChartOption(visualType, chart) {
-  switch (visualType) {
-    case "A": return buildClusterOption(chart);
-    case "B": return buildRegressionOption(chart);
-    case "C": return buildDayPairOption(chart);
-    case "D": return buildDistributionOption(chart);
-    case "E": return buildScheduleOption(chart);
-    default: return {};
+  if (!chart || Object.keys(chart).length === 0) {
+    return { grid: {} };
+  }
+
+  try {
+    switch (visualType) {
+      case "A":
+        if (!chart.low || !chart.high) return { grid: {} };
+        return buildClusterOption(chart);
+      case "B":
+        if (!chart.points) return { grid: {} };
+        return buildRegressionOption(chart);
+      case "C":
+        if (!chart.series) return { grid: {} };
+        return buildDayPairOption(chart);
+      case "D":
+        if (!chart.buckets) return { grid: {} };
+        return buildDistributionOption(chart);
+      case "E":
+        if (!chart.seriesA || !chart.seriesB) return { grid: {} };
+        return buildScheduleOption(chart);
+      default:
+        return { grid: {} };
+    }
+  } catch (err) {
+    console.error("ECharts build option crash prevented:", err);
+    return { grid: {} };
   }
 }

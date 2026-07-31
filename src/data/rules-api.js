@@ -202,6 +202,7 @@ export function initRuleMetaMap() {
       nameMap[r.ruleCode] = r.name;
       metaMap[r.ruleCode] = {
         name: r.name,
+        cxRuleId: r.cxRuleId,
         series: r.ruleCode.startsWith('C') ? 'C' : r.ruleCode.startsWith('D') ? 'D' : 'S',
         priority: r.priority,
         brief: r.judgmentStandard || r.thresholdValue

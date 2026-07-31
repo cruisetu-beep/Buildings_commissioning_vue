@@ -5,7 +5,6 @@
    (httpGet + /api/ 前缀 + 请求超时)。后端尚未提供本模块接口时,
    自动降级为本地 mock 数据(buildings-data.js),页面仍可正常使用。
    ═══════════════════════════════════════════════════════════════ */
-import { VIZ_RULES } from "./viz-data.js";
 
 const API_PREFIX = "/api/CxRuleResult";
 const REQUEST_TIMEOUT_MS = 8000;

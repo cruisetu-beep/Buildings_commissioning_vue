@@ -3,6 +3,7 @@
    VerdictCard · 判定结论(醒目)
    ═══════════════════════════════════════════════════════════════ */
 import Icon from "../icons/Icon.vue";
+import MarkdownView from "../common/MarkdownView.vue";
 
 defineProps({
   triggered: { type: Boolean, required: true },
@@ -26,6 +27,8 @@ defineProps({
       </div>
       <div class="verdict-rule mono">{{ ruleCode }}</div>
     </div>
-    <div class="verdict-body">{{ conclusion }}</div>
+    <div class="verdict-body">
+      <MarkdownView :source="conclusion" />
+    </div>
   </div>
 </template>

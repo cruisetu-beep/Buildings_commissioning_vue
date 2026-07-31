@@ -14,11 +14,29 @@ const props = defineProps({
   visualType: { type: String, required: true }, // A/B/C/D/E
   chart: { type: Object, default: () => ({}) },  // resultJSON.chart
   condition: { type: String, default: "" },      // 计算条件(来自窗口/接口)
+  dateFrom: { type: String, default: "" },
+  dateTo: { type: String, default: "" },
+  windowIdx: { type: Number, default: 0 }
 });
 
 const viewMode = ref("chart"); // "chart" | "data"
 
 const option = computed(() => buildChartOption(props.visualType, props.chart));
+
+// 精准研判图表是否存在可绘制的真实核心点集
+const hasChartData = computed(() => {
+  const c = props.chart;
+  if (!c || Object.keys(c).length === 0) return false;
+  
+  switch (props.visualType) {
+    case "A": return (c.low && c.low.length > 0) || (c.high && c.high.length > 0);
+    case "B": return c.points && c.points.length > 0;
+    case "C": return c.series && c.series.length > 0;
+    case "D": return c.buckets && c.buckets.length > 0;
+    case "E": return (c.seriesA?.data && c.seriesA.data.length > 0) || (c.seriesB?.data && c.seriesB.data.length > 0);
+    default: return false;
+  }
+});
 
 // 切换规则或窗口(条件随窗口变)时自动回到图表视图
 watch(
@@ -60,8 +78,28 @@ watch(
     </div>
 
     <div class="viz-chart-body">
-      <EChartsWidget v-if="viewMode === 'chart'" :option="option" :min-height="420" />
-      <RawDataView v-else :min-height="420" />
+      <!-- 统一空状态判断：若无任何有效测算点 -->
+      <div v-if="!hasChartData" class="viz-chart-empty-state" :style="{ minHeight: '420px', width: '100%' }">
+        <Icon name="flask" :size="22" stroke="var(--text-3)" />
+        <span class="viz-empty-text">该窗口暂无可用测算点以生成分析数据</span>
+        <span class="viz-empty-sub">可能原因为分析时间内设备未开启运行，或未采集到气象数据</span>
+      </div>
+      
+      <!-- 有数据状态下的分流渲染 -->
+      <template v-else>
+        <EChartsWidget v-if="viewMode === 'chart'" :option="option" :min-height="420" />
+        <RawDataView
+          v-else
+          :min-height="420"
+          :visual-type="visualType"
+          :chart="chart"
+          :date-from="dateFrom"
+          :date-to="dateTo"
+          :window-idx="windowIdx"
+          :raw-data="chart?.rawDataPoints || []"
+          :target-temp="chart?.targetTemp || '—'"
+        />
+      </template>
     </div>
   </div>
 </template>

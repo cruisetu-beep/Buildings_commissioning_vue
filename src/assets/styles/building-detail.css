@@ -109,6 +109,7 @@
         display: grid;
         grid-template-columns: 320px 1fr;
         gap: 14px;
+        height: calc(100vh - 220px);
         align-items: stretch;
       }
 
@@ -117,8 +118,8 @@
         flex-direction: column;
         gap: 12px;
         min-width: 0;
-        max-height: calc(100vh - 220px);
-        overflow-y: auto;
+        height: 100%;
+        overflow: hidden;
       }
 
       /* ─── 左栏:规则大纲 ─── */
@@ -277,7 +278,7 @@
       .bd-mid {
         padding: 20px 22px;
         min-height: 500px;
-        max-height: calc(100vh - 220px);
+        height: 100%;
         overflow-y: auto;
       }
 
@@ -352,7 +353,12 @@
         font-size: 12.5px;
         font-weight: 600;
         color: var(--text-0);
-        margin-bottom: 10px;
+        margin-bottom: 14px;
+      }
+
+      .rd-section-title .viz-type-badge {
+        transform: translateY(0.5px);
+        margin-left: 2px;
       }
 
       .rd-section-hint {
@@ -432,27 +438,99 @@
         gap: 8px;
         margin-bottom: 14px;
       }
+
       .rd-win-tab {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 6px 12px;
+        padding: 7px 14px;
         font-size: 12px;
         color: var(--text-1);
         background: white;
         border: 1px solid var(--line);
-        border-radius: 7px;
+        border-radius: 8px;
         cursor: pointer;
-        transition: all 0.15s;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+        font-weight: 500;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       }
-      .rd-win-tab:hover { border-color: var(--line-strong); background: #fafcff; }
+
+      .rd-win-tab:hover {
+        border-color: rgba(31, 111, 235, 0.35);
+        background: #fdfeff;
+        transform: translateY(-1.5px);
+        box-shadow: 0 3px 6px rgba(31, 111, 235, 0.06);
+      }
+
       .rd-win-tab.active {
         color: var(--brand);
-        background: rgba(31, 111, 235, 0.06);
-        border-color: rgba(31, 111, 235, 0.4);
+        font-weight: 600;
+        background: linear-gradient(180deg, rgba(31, 111, 235, 0.07) 0%, rgba(31, 111, 235, 0.03) 100%);
+        border-color: rgba(31, 111, 235, 0.38);
+        box-shadow: 0 2px 4px rgba(31, 111, 235, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.5);
       }
-      .rd-win-tab-period { color: var(--text-3); font-size: 11px; }
-      .rd-win-tab.active .rd-win-tab-period { color: var(--brand); }
+
+      .rd-win-tab-period {
+        color: var(--text-3);
+        font-size: 11px;
+        font-weight: 400;
+      }
+
+      .rd-win-tab.active .rd-win-tab-period {
+        color: var(--brand);
+      }
+
+      /* 判定卡片内部 Markdown 样式与红绿底色高度融合 */
+      .verdict-card .markdown-view {
+        color: var(--text-0);
+      }
+
+      .verdict-card .markdown-view table {
+        width: 100%;
+        margin-top: 12px;
+      }
+
+      .verdict-card.trig .markdown-view table th {
+        background: rgba(220, 38, 38, 0.05);
+        color: #dc2626;
+        border-color: rgba(220, 38, 38, 0.16);
+      }
+
+      .verdict-card.trig .markdown-view table td,
+      .verdict-card.trig .markdown-view table {
+        border-color: rgba(220, 38, 38, 0.12);
+      }
+
+      .verdict-card.trig .markdown-view tr:nth-child(even) {
+        background: rgba(220, 38, 38, 0.015);
+      }
+
+      .verdict-card.trig .markdown-view code {
+        color: #dc2626;
+        background: rgba(220, 38, 38, 0.06);
+        border-color: rgba(220, 38, 38, 0.14);
+      }
+
+      .verdict-card.ok .markdown-view table th {
+        background: rgba(24, 165, 114, 0.05);
+        color: #18a572;
+        border-color: rgba(24, 165, 114, 0.16);
+      }
+
+      .verdict-card.ok .markdown-view table td,
+      .verdict-card.ok .markdown-view table {
+        border-color: rgba(24, 165, 114, 0.12);
+      }
+
+      .verdict-card.ok .markdown-view tr:nth-child(even) {
+        background: rgba(24, 165, 114, 0.015);
+      }
+
+      .verdict-card.ok .markdown-view code {
+        color: #18a572;
+        background: rgba(24, 165, 114, 0.06);
+        border-color: rgba(24, 165, 114, 0.14);
+      }
 
       /* 竖排堆叠:图表 + 结论/指标/窗口面板 */
       .rd-viz-stack {
@@ -460,7 +538,10 @@
         flex-direction: column;
         gap: 14px;
       }
-      .rd-viz-chart { padding: 12px 14px; }
+
+      .rd-viz-chart {
+        padding: 12px 14px;
+      }
 
       /* 无计算过程数据 */
       .rd-viz-empty {
@@ -599,6 +680,7 @@
         box-shadow: none;
         transform: none;
       }
+
       .rd-viz-btn:disabled:hover {
         background: #f5f7fb;
         border-color: var(--line);
@@ -744,6 +826,31 @@
 
       .node-cat {
         font-size: 10px;
+        color: var(--text-3);
+      }
+
+      /* 图表无数据提示状态 */
+      .viz-chart-empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        background: #fafcff;
+        border: 1px dashed var(--line-soft);
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        width: 100%;
+        flex: 1;
+      }
+      .viz-empty-text {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-2);
+      }
+      .viz-empty-sub {
+        font-size: 11px;
         color: var(--text-3);
       }
 

@@ -294,12 +294,101 @@
         background: linear-gradient(180deg, #fafcff, transparent);
       }
 
-      .manual-section { margin-bottom: 20px; }
+      .manual-section {
+        padding: 12px 14px;
+        margin-bottom: 12px;
+        background: #fafcff;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+      }
       .manual-section:last-child { margin-bottom: 0; }
+      
+      /* Markdown 渲染排版 */
+      .markdown-body {
+        font-size: 12.5px;
+        color: var(--text-1);
+        line-height: 1.7;
+      }
+      .markdown-body h4 {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--text-0);
+        margin: 16px 0 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .markdown-body p {
+        margin: 0 0 10px 0;
+      }
+      .markdown-body p:last-child {
+        margin-bottom: 0;
+      }
+      .markdown-body ul, .markdown-body ol {
+        margin: 0 0 10px 0;
+        padding-left: 18px;
+      }
+      .markdown-body li {
+        margin-bottom: 4px;
+      }
+      .markdown-body blockquote {
+        margin: 0 0 10px 0;
+        padding: 6px 12px;
+        background: #f0f4ff;
+        border-left: 3px solid var(--brand);
+        color: var(--text-2);
+        border-radius: 0 4px 4px 0;
+      }
+      .markdown-body code {
+        font-family: Consolas, Monaco, monospace;
+        font-size: 11.5px;
+        background: rgba(0,0,0,0.04);
+        padding: 2px 5px;
+        border-radius: 4px;
+        color: var(--brand);
+      }
+      
+      /* Markdown 表格样式 */
+      .markdown-body table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 14px 0;
+        font-size: 12px;
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .markdown-body th {
+        background: #f6f9ff;
+        color: var(--text-0);
+        font-weight: 600;
+        border-bottom: 2px solid var(--line-strong);
+        padding: 8px 12px;
+        text-align: left;
+      }
+      .markdown-body td {
+        border-bottom: 1px solid var(--line-soft);
+        padding: 8px 12px;
+        color: var(--text-1);
+        text-align: left;
+      }
+      .markdown-body tr:last-child td {
+        border-bottom: none;
+      }
+      .markdown-body tr:nth-child(even) {
+        background: rgba(47,127,255,0.01);
+      }
+      .markdown-body tr:hover {
+        background: rgba(47,127,255,0.03);
+      }
+
       .manual-section-title {
         display: flex; align-items: center; gap: 8px;
-        font-size: 12.5px; font-weight: 600; color: var(--text-0);
+        font-size: 13px; font-weight: 700; color: var(--text-0);
+        padding-bottom: 8px;
         margin-bottom: 8px;
+        border-bottom: 1px dashed var(--line);
       }
       .section-num {
         display: inline-grid; place-items: center;

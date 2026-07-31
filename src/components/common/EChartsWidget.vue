@@ -63,6 +63,7 @@ watch(
   (opt) => {
     if (chart && opt) {
       try {
+        chart.clear(); // 彻底清除上一个 option 的所有图形与 graphic 残留，防止错位重叠
         chart.setOption(opt, props.notMerge);
       } catch (e) {
         console.error("[EChartsWidget] setOption error:", e);

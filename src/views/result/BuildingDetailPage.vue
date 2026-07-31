@@ -10,10 +10,10 @@ import BuildFuncTag from "../../components/common/BuildFuncTag.vue";
 import RuleOutlineList from "../../components/result/RuleOutlineList.vue";
 import RuleDetailArea from "../../components/result/RuleDetailArea.vue";
 import BuildingInfoPanel from "../../components/result/BuildingInfoPanel.vue";
-import RuleVizModal from "../../components/result/RuleVizModal.vue";
+
 import RuleDetailModal from "../../components/result/RuleDetailModal.vue";
 import { fetchBuildingById } from "../../data/buildings-api.js";
-import { initRuleMetaMap } from "../../data/rules-api.js";
+import { initRuleMetaMap, ruleMetaMapRef } from "../../data/rules-api.js";
 
 import "../../assets/styles/building-detail.css";
 
@@ -61,7 +61,13 @@ const handleJumpToViz = (ruleCode) => {
 };
 
 const handleOpenDetail = (ruleCode) => {
-  ruleDetailCode.value = ruleCode;
+  if (!ruleCode) return;
+  const mapped = ruleMetaMapRef.value[ruleCode];
+  if (mapped && mapped.cxRuleId) {
+    ruleDetailCode.value = mapped.cxRuleId;
+  } else {
+    ruleDetailCode.value = ruleCode;
+  }
 };
 </script>
 
@@ -119,19 +125,12 @@ const handleOpenDetail = (ruleCode) => {
       </div>
     </div>
 
-    <!-- 算法可视化弹窗 -->
-    <RuleVizModal
-      v-if="vizModalCode"
-      :rule-code="vizModalCode"
-      :building="building"
-      :result="activeResult"
-      @close="vizModalCode = null"
-    />
+
 
     <!-- 规则详细弹窗 -->
     <RuleDetailModal
       v-if="ruleDetailCode"
-      :rule-code="ruleDetailCode"
+      :rule-id="ruleDetailCode"
       :rule-name="activeResult?.ruleName || ''"
       @close="ruleDetailCode = null"
     />
