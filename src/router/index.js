@@ -11,8 +11,10 @@ const routes = [
   { path: "/result", name: "result-list", component: () => import("../views/result/BuildingListPage.vue") },
   { path: "/result/:id", name: "result-detail", component: () => import("../views/result/BuildingDetailPage.vue") },
 
+  { path: "/building-batch-sort", name: "building-batch-sort", component: () => import("../views/buildingSort/BuildingBatchSortPage.vue") },
+
   // 其余模块:本批次仅占位,后续批次逐个替换
-  ...MODULES.filter((m) => m.key !== "rules" && m.key !== "params" && m.key !== "result").map((m) => ({
+  ...MODULES.filter((m) => m.key !== "rules" && m.key !== "params" && m.key !== "result" && m.key !== "building-batch-sort").map((m) => ({
     path: `/${m.key}`,
     name: m.key,
     component: () => import("../views/PlaceholderPage.vue"),
