@@ -4,12 +4,11 @@
    ═══════════════════════════════════════════════════════════════ */
 import { computed } from "vue";
 import Icon from "../icons/Icon.vue";
-import { FUNC_MAP } from "../../data/func-map.js";
 import { AFFECTED_COUNT } from "../../data/threshold-matrix-data.js";
-
 const props = defineProps({
   rule: { type: String, required: true },
   func: { type: String, required: true },
+  funcName: { type: String, required: true },
   value: { type: String, required: true },
   original: { type: String, required: true },
   editable: { type: Boolean, default: false },
@@ -21,7 +20,7 @@ const emit = defineEmits(["change"]);
 const isChanged = computed(() => props.value !== props.original);
 const affected = computed(() => AFFECTED_COUNT[props.rule]?.[props.func] || 0);
 const cellColor = computed(() => props.meta.color);
-const title = computed(() => `${props.rule} · ${FUNC_MAP[props.func]} · 当前影响 ${affected.value} 栋建筑的判定`);
+const title = computed(() => `${props.rule} · ${props.funcName} · 当前影响 ${affected.value} 栋建筑的判定`);
 
 const onInputChange = (e) => emit("change", e.target.value);
 </script>

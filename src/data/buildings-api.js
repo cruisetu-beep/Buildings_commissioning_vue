@@ -31,6 +31,60 @@ async function httpGet(url, params = {}) {
   }
 }
 
+/** 获取可供录入的已计算建筑列表 */
+export async function fetchCalcBuildings() {
+  try {
+    const data = await httpGet(`${API_PREFIX}/getCalcBuildingList`);
+    return data || [];
+  } catch (error) {
+    console.error("fetchCalcBuildings failed:", error);
+    return [];
+  }
+}
+
+/** 获取大楼业态映射字典 (F_ItemCode -> F_ItemName) */
+export async function fetchFuncDict() {
+  try {
+    const data = await httpGet(`${API_PREFIX}/getFuncDict`);
+    return data || {};
+  } catch (error) {
+    console.error("fetchFuncDict failed:", error);
+    return {};
+  }
+}
+
+/** 获取建筑资源包基本信息与附件 */
+export async function fetchBuildingResources(buildId) {
+  try {
+    return await httpGet(`${API_PREFIX}/getBuildingResources`, { buildId });
+  } catch (error) {
+    console.error("fetchBuildingResources failed:", error);
+    return null;
+  }
+}
+
+/** 获取所有规则元数据 */
+export async function fetchRuleMetas() {
+  try {
+    const data = await httpGet(`${API_PREFIX}/getRuleMetas`);
+    return data || [];
+  } catch (error) {
+    console.error("fetchRuleMetas failed:", error);
+    return [];
+  }
+}
+
+/** 获取指定大楼、指定年份的真实计算步骤流水 */
+export async function fetchBuildingCalcSteps(buildId, year = 2025) {
+  try {
+    const data = await httpGet(`${API_PREFIX}/getBuildingCalcSteps`, { buildId, year });
+    return data || [];
+  } catch (error) {
+    console.error("fetchBuildingCalcSteps failed:", error);
+    return [];
+  }
+}
+
 /** 获取建筑清单(按分析年份)。 */
 export async function fetchBuildings(params = {}) {
   try {
@@ -45,6 +99,23 @@ export async function fetchBuildings(params = {}) {
   } catch (error) {
     console.error("fetchBuildings failed:", error);
     return [];
+  }
+}
+
+/** 保存大楼计算结果（将 T_ST_CxRuleMainResult 的 F_State 更新为 1） */
+export async function saveBuildingCxResult(buildId) {
+  try {
+    const response = await fetch(`${API_PREFIX}/saveBuildingCxResult?buildId=${encodeURIComponent(buildId)}`, {
+      method: "POST"
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const result = await response.json();
+    return result.success || result.data === true;
+  } catch (error) {
+    console.error("saveBuildingCxResult failed:", error);
+    return false;
   }
 }
 

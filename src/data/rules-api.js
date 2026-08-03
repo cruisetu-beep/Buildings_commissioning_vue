@@ -4,7 +4,7 @@
    数据已全面对接后端接口（/api/CxRule），已移除 RULES_DATA 本地 Mock 数据。
    ═══════════════════════════════════════════════════════════════ */
 import { ref } from "vue";
-import { FUNC_MAP } from "./func-map.js";
+import { fetchFuncDict } from "./buildings-api.js";
 import { RULE_MANUAL, DEFAULT_MANUAL, getManual } from "./rule-manual.js";
 import { THRESHOLD_MAP } from "./threshold-map.js";
 
@@ -51,15 +51,47 @@ async function httpPost(url, data = {}, params = {}) {
   return result.data;
 }
 
-/** 获取全部判定规则列表 */
+let cachedRules = null;
+let rulesPromise = null;
+
+/** 获取全部判定规则列表（已做全局防并发与 Promise 单例缓存优化） */
 export async function fetchRules(params = {}) {
-  try {
-    const list = await httpGet(`${API_PREFIX}/getRuleList`, params);
-    return list || [];
-  } catch (error) {
-    console.error("fetchRules failed, fallback to empty list:", error);
-    return [];
+  // 如果带有具体查询参数，不走静态全局缓存
+  if (params && Object.keys(params).length > 0) {
+    try {
+      const list = await httpGet(`${API_PREFIX}/getRuleList`, params);
+      return list || [];
+    } catch (error) {
+      console.error("fetchRules with params failed:", error);
+      return [];
+    }
   }
+
+  // 1. 如果缓存中已有数据，直接返回
+  if (cachedRules) {
+    return cachedRules;
+  }
+
+  // 2. 如果当前有正在请求中的 Promise，直接复用该 Promise 避免并发请求
+  if (rulesPromise) {
+    return rulesPromise;
+  }
+
+  rulesPromise = (async () => {
+    try {
+      const list = await httpGet(`${API_PREFIX}/getRuleList`, params);
+      cachedRules = list || [];
+      return cachedRules;
+    } catch (error) {
+      console.error("fetchRules failed, fallback to empty list:", error);
+      return [];
+    } finally {
+      // 请求完成后释放单例占位
+      rulesPromise = null;
+    }
+  })();
+
+  return rulesPromise;
 }
 
 /** 获取单条规则详情 */
@@ -104,8 +136,8 @@ export async function createRule(data) {
 }
 
 /** 业态代码 → 业态名称 映射 */
-export function fetchFuncMap() {
-  return Promise.resolve({ ...FUNC_MAP });
+export async function fetchFuncMap() {
+  return await fetchFuncDict();
 }
 
 /** 规则手册原文(按规则分类编码取,取不到则返回默认模板) */
@@ -216,4 +248,4 @@ export function initRuleMetaMap() {
 }
 
 // 同步版本支持详情页初始值（从本地获取兜底映射）
-export { RULE_MANUAL, DEFAULT_MANUAL, getManual, THRESHOLD_MAP, FUNC_MAP };
+export { RULE_MANUAL, DEFAULT_MANUAL, getManual, THRESHOLD_MAP };

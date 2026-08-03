@@ -8,7 +8,7 @@ import Icon from "../../components/icons/Icon.vue";
 import MatrixCell from "../../components/params/MatrixCell.vue";
 import SaveConfirmModal from "../../components/params/SaveConfirmModal.vue";
 import ResetDefaultModal from "../../components/params/ResetDefaultModal.vue";
-import { FUNC_MAP } from "../../data/func-map.js";
+import { fetchFuncDict } from "../../data/buildings-api.js";
 import {
   fetchThresholds,
   saveThresholds,
@@ -23,6 +23,7 @@ import "../../assets/styles/threshold-matrix.css";
 const editMode = ref(false);
 const thresholds = ref({});
 const baseline = ref({}); // 当前"已保存"的基准值(用于判定 changed / 撤销)
+const funcMap = ref({});
 const loading = ref(true);
 
 const dRuleCount = computed(() => {
@@ -36,10 +37,16 @@ const savedCount = ref(0);
 const saveError = ref("");
 
 onMounted(async () => {
-  const data = await fetchThresholds();
-  thresholds.value = data;
-  baseline.value = JSON.parse(JSON.stringify(data));
-  loading.value = false;
+  try {
+    const data = await fetchThresholds();
+    thresholds.value = data;
+    baseline.value = JSON.parse(JSON.stringify(data));
+    funcMap.value = await fetchFuncDict();
+  } catch (err) {
+    console.error("Failed to load initial thresholds & func dict:", err);
+  } finally {
+    loading.value = false;
+  }
 });
 
 watch([showSaveModal, showResetModal], ([saveOpen, resetOpen]) => {
@@ -255,13 +262,14 @@ const onJumpToMatrix = () => {
             <tr v-for="func in FUNC_LIST" :key="func">
               <td class="td-func">
                 <div class="td-func-code mono">{{ func }}</div>
-                <div class="td-func-name">{{ FUNC_MAP[func] }}</div>
+                <div class="td-func-name">{{ funcMap[func] }}</div>
               </td>
               <td v-for="rule in RULE_LIST" :key="rule" class="td-cell">
                 <MatrixCell
                   v-if="thresholds[rule]"
                   :rule="rule"
                   :func="func"
+                  :func-name="funcMap[func] || ''"
                   :value="thresholds[rule][func]"
                   :original="baseline[rule][func]"
                   :editable="editMode"

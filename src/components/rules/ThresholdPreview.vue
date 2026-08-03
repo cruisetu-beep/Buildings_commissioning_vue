@@ -4,7 +4,8 @@
    ═══════════════════════════════════════════════════════════════ */
 import { ref, watch, computed, onMounted } from "vue";
 import Icon from "../icons/Icon.vue";
-import { fetchThresholdMap, FUNC_MAP } from "../../data/rules-api.js";
+import { fetchThresholdMap } from "../../data/rules-api.js";
+import { fetchFuncDict } from "../../data/buildings-api.js";
 
 const props = defineProps({
   ruleCode: { type: String, required: true },
@@ -12,6 +13,7 @@ const props = defineProps({
 const emit = defineEmits(["jump-to-matrix"]);
 
 const config = ref(null);
+const funcMap = ref({});
 
 const loadThresholdData = async () => {
   if (!props.ruleCode) return;
@@ -19,8 +21,13 @@ const loadThresholdData = async () => {
   config.value = map[props.ruleCode] || null;
 };
 
-onMounted(() => {
+onMounted(async () => {
   loadThresholdData();
+  try {
+    funcMap.value = await fetchFuncDict();
+  } catch (err) {
+    console.error("Failed to load dynamic func dict in ThresholdPreview:", err);
+  }
 });
 
 watch(() => props.ruleCode, () => {
@@ -43,7 +50,7 @@ const entries = computed(() => (config.value ? Object.entries(config.value.value
       <div v-for="[func, value] in entries" :key="func" class="threshold-cell">
         <div class="tc-func">
           <span class="tc-func-code mono">{{ func }}</span>
-          <span class="tc-func-name">{{ FUNC_MAP[func] }}</span>
+          <span class="tc-func-name">{{ funcMap[func] }}</span>
         </div>
         <div class="tc-value mono">{{ value }}</div>
         <div v-if="config.notes[func]" class="tc-note">{{ config.notes[func] }}</div>

@@ -2,15 +2,25 @@
 /* ═══════════════════════════════════════════════════════════════
    SaveConfirmModal · 保存确认对话框
    ═══════════════════════════════════════════════════════════════ */
-import { computed } from "vue";
+import { ref, onMounted, computed } from "vue";
 import Icon from "../icons/Icon.vue";
-import { FUNC_MAP } from "../../data/func-map.js";
+import { fetchFuncDict } from "../../data/buildings-api.js";
 import { THRESHOLD_RULE_META, AFFECTED_COUNT } from "../../data/threshold-matrix-data.js";
 
 const props = defineProps({
   changes: { type: Array, required: true },
 });
 const emit = defineEmits(["confirm", "cancel"]);
+
+const funcMap = ref({});
+
+onMounted(async () => {
+  try {
+    funcMap.value = await fetchFuncDict();
+  } catch (err) {
+    console.error("Failed to load func dict in SaveConfirmModal:", err);
+  }
+});
 
 // 简化统计:直接累加(实际应去重),与原型保持一致
 const totalAffected = computed(() => {
@@ -48,7 +58,7 @@ const totalAffected = computed(() => {
               <span class="chg-rule mono">{{ c.rule }}</span>
               <span class="chg-func">
                 <span class="mono">{{ c.func }}</span>
-                <span class="chg-func-name">{{ FUNC_MAP[c.func] }}</span>
+                <span class="chg-func-name">{{ funcMap[c.func] }}</span>
               </span>
             </div>
             <div class="change-row-mid">

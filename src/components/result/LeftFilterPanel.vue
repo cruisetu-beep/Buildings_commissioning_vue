@@ -4,13 +4,16 @@
    ═══════════════════════════════════════════════════════════════ */
 import { ref, computed, onMounted } from "vue";
 import Icon from "../icons/Icon.vue";
-import { FUNC_MAP } from "../../data/func-map.js";
+import { fetchFuncDict } from "../../data/buildings-api.js";
 import { fetchRules, ruleNameMapRef, initRuleMetaMap } from "../../data/rules-api.js";
 
 const emit = defineEmits(["reset"]);
 const filters = defineModel({ required: true }); // { funcs, hitMin, hitMax, archives, rules }
 
-const funcEntries = Object.entries(FUNC_MAP).filter(([k]) => k !== "BY");
+const funcMap = ref({});
+const funcEntries = computed(() => {
+  return Object.entries(funcMap.value).filter(([k]) => k !== "BY");
+});
 
 const toggleFunc = (code) => {
   filters.value.funcs = filters.value.funcs.includes(code)
@@ -19,7 +22,7 @@ const toggleFunc = (code) => {
 };
 
 const toggleSelectAllFuncs = () => {
-  const allCodes = funcEntries.map(([code]) => code);
+  const allCodes = funcEntries.value.map(([code]) => code);
   const allSelected = allCodes.every((code) => filters.value.funcs.includes(code));
   filters.value.funcs = allSelected ? [] : allCodes;
 };
@@ -30,6 +33,11 @@ const rulesList = ref([]);
 onMounted(async () => {
   rulesList.value = await fetchRules();
   initRuleMetaMap();
+  try {
+    funcMap.value = await fetchFuncDict();
+  } catch (err) {
+    console.error("Failed to load dynamic func dict:", err);
+  }
 });
 
 const cCodes = computed(() => {

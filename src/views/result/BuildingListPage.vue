@@ -9,11 +9,19 @@ import Icon from "../../components/icons/Icon.vue";
 import QuickFilterBar from "../../components/result/QuickFilterBar.vue";
 import LeftFilterPanel from "../../components/result/LeftFilterPanel.vue";
 import BuildingCard from "../../components/result/BuildingCard.vue";
+import BuildingImportModal from "../../components/result/BuildingImportModal.vue";
 import { fetchBuildings } from "../../data/buildings-api.js";
 
 import "../../assets/styles/building-list.css";
 
 const router = useRouter();
+const showImportModal = ref(false);
+
+const onImportSaved = async () => {
+  loading.value = true;
+  buildings.value = await fetchBuildings({ year: year.value });
+  loading.value = false;
+};
 
 const year = ref(2025);
 const quick = ref("target"); // 默认目标调适全量
@@ -116,6 +124,9 @@ const onOpenBuilding = (b) => {
         </div>
       </div>
       <div class="page-head-actions">
+        <button class="btn primary" @click="showImportModal = true">
+          <Icon name="plus" :size="14" /> 录入建筑
+        </button>
         <div class="year-selector">
           <span class="year-label">分析年份</span>
           <select class="filter-select year-select mono" v-model.number="year">
@@ -197,5 +208,12 @@ const onOpenBuilding = (b) => {
         </div>
       </div>
     </div>
+    
+    <!-- 录入建筑判定模态框 -->
+    <BuildingImportModal 
+      :show="showImportModal" 
+      @close="showImportModal = false" 
+      @saved="onImportSaved" 
+    />
   </div>
 </template>
