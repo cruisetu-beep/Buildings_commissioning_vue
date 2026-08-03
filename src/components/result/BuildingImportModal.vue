@@ -335,7 +335,7 @@ function handlePrev() {
 
 // ─── 真实保存（状态置1落库） ───
 async function onSave() {
-  if (!selectedBuildId.value) return;
+  if (loading.value || !selectedBuildId.value) return;
   loading.value = true;
   try {
     const success = await saveBuildingCxResult(selectedBuildId.value);
@@ -345,13 +345,14 @@ async function onSave() {
       setTimeout(() => {
         onClose();
       }, 1000);
+      // 成功时不恢复 loading，让其一直保持 true 直至弹窗销毁，彻底防连击
     } else {
       showToast("保存失败：未找到记录或服务异常", "error");
+      loading.value = false;
     }
   } catch (error) {
     console.error(error);
     showToast("保存出错，请稍后重试", "error");
-  } finally {
     loading.value = false;
   }
 }
@@ -646,8 +647,9 @@ function onClose() {
         <button class="btn primary" v-if="step === 2" :disabled="progress < 100" @click="handleNext">
           查看判定结果
         </button>
-        <button class="btn primary" v-if="step === 3" @click="onSave">
-          保存
+        <button class="btn primary" v-if="step === 3" :disabled="loading" @click="onSave">
+          <span v-if="loading">保存中...</span>
+          <span v-else>保存</span>
         </button>
         <button class="btn ghost" @click="onClose">
           取消
