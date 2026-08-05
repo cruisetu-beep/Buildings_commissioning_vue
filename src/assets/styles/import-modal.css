@@ -464,6 +464,26 @@
   color: #e2e8f0;
 }
 
+/* 优化暗色终端在全局滚动条样式下的能见度，防止滑块看不清 */
+.terminal-logs::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.terminal-logs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.terminal-logs::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 4px;
+}
+
+.terminal-logs::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.48);
+}
+
+
 .log-line {
   margin-bottom: 6px;
   white-space: pre-wrap;

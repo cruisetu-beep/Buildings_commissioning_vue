@@ -110,12 +110,12 @@ export function buildClusterOption(c) {
       },
       {
         name: highLabel, type: "scatter", data: c.high, symbolSize: 9,
-        itemStyle: { color: "#2f7fff", opacity: 0.72, borderColor: "#1860d4", borderWidth: 1 },
+        itemStyle: { color: "#f97316", opacity: 0.72, borderColor: "#ea580c", borderWidth: 1 },
         markLine: {
           symbol: "none", silent: true,
-          lineStyle: { color: "#2f7fff", type: "dashed", width: 1, opacity: 0.5 },
+          lineStyle: { color: "#f97316", type: "dashed", width: 1, opacity: 0.5 },
           label: {
-            color: "#2f7fff", fontSize: 10,
+            color: "#f97316", fontSize: 10,
             position: "insideEndTop",
             formatter: `高簇 ${c.highMean} kW`
           },

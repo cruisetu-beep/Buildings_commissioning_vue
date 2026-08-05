@@ -189,6 +189,12 @@ async function onBuildingChange() {
   // 记录选中的原始建筑对象，供第 2 步模拟命中规则使用
   selectedBuilding.value = buildingList.value.find(b => b.buildId === selectedBuildId.value) || null;
   
+  // 切换大楼时，彻底清理上一次的日志、进度与判定结果，防止脏数据残留
+  logs.value = [];
+  progress.value = 0;
+  finishedRules.value = [];
+  realtimeHits.value = [];
+
   loading.value = true;
   try {
     const data = await fetchBuildingResources(selectedBuildId.value);
@@ -301,8 +307,11 @@ function addLog(type, text) {
 // ─── 步骤跳转 ───
 async function handleNext() {
   if (step.value === 1) {
+    // 点击开始分析，立即重置上一次分析状态，防止在过渡动画和加载期间出现旧建筑的日志和进度条残留
     finishedRules.value = [];
     realtimeHits.value = [];
+    logs.value = [];
+    progress.value = 0;
     loading.value = true;
     try {
       calcSteps.value = await fetchBuildingCalcSteps(selectedBuildId.value, 2025);
@@ -328,6 +337,11 @@ function handlePrev() {
       timer.value = null;
     }
     step.value = 1;
+    // 回到上一步时，同步清理计算日志、进度以及临时计算数据，确保下次分析时界面干净
+    logs.value = [];
+    progress.value = 0;
+    finishedRules.value = [];
+    realtimeHits.value = [];
   } else if (step.value === 3) {
     step.value = 2;
   }
