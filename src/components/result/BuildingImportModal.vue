@@ -207,15 +207,31 @@ async function onBuildingChange() {
 }
 
 // ─── 真实附件下载 ───
-function downloadAttachment(file) {
+async function downloadAttachment(file) {
   if (file.objectName && file.bucketName) {
     const url = getFileUrl(file.bucketName, file.objectName);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = file.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Network response was not ok");
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // 延迟释放，确保浏览器下载任务启动
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+    } catch (err) {
+      console.error("fetch download failed, fallback to direct open:", err);
+      // 降级方案：若 fetch 失败则直接在新窗口打开（可能触发预览）
+      window.open(url, "_blank");
+    }
   } else {
     showToast("无法下载文件：缺少对象路径", "error");
   }
