@@ -209,7 +209,7 @@ async function onBuildingChange() {
 // ─── 真实附件下载 ───
 function downloadAttachment(file) {
   if (file.objectName && file.bucketName) {
-    const url = `api/public/oosFile?bucketName=${encodeURIComponent(file.bucketName)}&objectName=${encodeURIComponent(file.objectName)}`;
+    const url = getFileUrl(file.bucketName, file.objectName);
     const link = document.createElement('a');
     link.href = url;
     link.download = file.name;
@@ -224,11 +224,19 @@ function downloadAttachment(file) {
 // ─── 附件预览 ───
 function previewAttachment(file) {
   if (file.objectName && file.bucketName) {
-    const url = `api/public/oosFile?bucketName=${encodeURIComponent(file.bucketName)}&objectName=${encodeURIComponent(file.objectName)}`;
+    const url = getFileUrl(file.bucketName, file.objectName);
     window.open(url, "_blank");
   } else {
     showToast("无法预览文件：缺少对象路径", "error");
   }
+}
+
+// ─── 统一获取 OOS 文件访问真实 URL (对齐台账环境配置与降级备用地址) ───
+function getFileUrl(bucketName, objectName) {
+  if (!bucketName || !objectName) return "";
+  const baseUrl = import.meta.env.VITE_CARBON_PLATFORM_API_BASE;
+  const normalizedBaseUrl = baseUrl ? (baseUrl.endsWith("/") ? baseUrl : baseUrl + "/") : "/";
+  return `${normalizedBaseUrl}api/public/oosFile?bucketName=${encodeURIComponent(bucketName)}&objectName=${encodeURIComponent(objectName)}`;
 }
 
 // ─── 动画计算流水线 (Step 2) ───
@@ -497,7 +505,7 @@ function onClose() {
               <div class="form-field" style="grid-column: span 2;">
                 <label>案例图片</label>
                 <div v-if="buildingInfo?.objectName" class="case-img-preview" style="margin-top: 8px;">
-                  <img :src="`api/public/oosFile?bucketName=exhibition-case&objectName=${buildingInfo.objectName}`" alt="案例图片" style="max-width: 240px; max-height: 160px; border-radius: 4px; border: 1px solid #e2e8f0; object-fit: cover;" />
+                  <img :src="getFileUrl('exhibition-case', buildingInfo.objectName)" alt="案例图片" style="max-width: 240px; max-height: 160px; border-radius: 4px; border: 1px solid #e2e8f0; object-fit: cover;" />
                 </div>
                 <input v-else class="import-input" type="text" value="暂无案例图片" readonly />
               </div>
@@ -550,7 +558,7 @@ function onClose() {
             <div class="pipeline-side-card">
               <div class="side-card-title">建筑信息</div>
               <div class="side-bld-icon" style="overflow: hidden;">
-                <img v-if="buildingInfo?.objectName" :src="`api/public/oosFile?bucketName=exhibition-case&objectName=${buildingInfo.objectName}`" alt="大楼" style="width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit;" />
+                <img v-if="buildingInfo?.objectName" :src="getFileUrl('exhibition-case', buildingInfo.objectName)" alt="大楼" style="width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit;" />
                 <Icon v-else name="target" :size="20" style="margin: auto;" />
               </div>
               <div class="side-bld-name">{{ buildingInfo?.buildName }}</div>
