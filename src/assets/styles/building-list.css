@@ -1,59 +1,115 @@
       /* ─── 年份选择器 ─── */
       .year-selector {
-        display: flex; align-items: center; gap: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
         padding: 4px 4px 4px 12px;
-        background: white; border: 1px solid var(--line);
+        background: white;
+        border: 1px solid var(--line);
         border-radius: 8px;
       }
-      .year-label { font-size: 12px; color: var(--text-2); }
+
+      .year-label {
+        font-size: 12px;
+        color: var(--text-2);
+      }
+
       .year-select {
-        font-weight: 600; color: var(--brand); font-size: 13px;
-        padding: 7px 30px 7px 10px; border: none; background-color: transparent;
+        font-weight: 600;
+        color: var(--brand);
+        font-size: 13px;
+        padding: 7px 24px 7px 10px;
+        min-width: 80px !important;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background-color: white;
       }
 
       /* ─── 顶部快捷筛选按钮组 ─── */
       .quick-filter-bar {
-        display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 10px;
         margin-bottom: 16px;
       }
+
       .qf-btn {
-        display: flex; flex-direction: column; gap: 4px;
-        padding: 12px 14px; text-align: left;
-        background: white; border: 1px solid var(--line);
-        border-radius: 10px; cursor: pointer;
-        transition: all 0.15s; font-family: inherit;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 12px 14px;
+        text-align: left;
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: inherit;
         position: relative;
       }
-      .qf-btn:hover { border-color: var(--line-strong); background: #fafcff; }
+
+      .qf-btn:hover {
+        border-color: var(--line-strong);
+        background: #fafcff;
+      }
+
       .qf-btn.active {
-        box-shadow: 0 0 0 3px rgba(47,127,255,0.08);
+        box-shadow: 0 0 0 3px rgba(47, 127, 255, 0.08);
       }
+
       .qf-btn-main {
-        display: flex; align-items: center; gap: 6px;
-        font-size: 12.5px; font-weight: 500; color: var(--text-0);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--text-0);
       }
-      .qf-dot { width: 8px; height: 8px; border-radius: 50%; }
-      .qf-btn.active .qf-btn-main { color: inherit; }
+
+      .qf-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+
+      .qf-btn.active .qf-btn-main {
+        color: inherit;
+      }
+
       .qf-btn-count {
-        font-size: 20px; font-weight: 700;
-        color: var(--text-0); line-height: 1;
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--text-0);
+        line-height: 1;
         letter-spacing: -0.5px;
       }
+
       .qf-btn-hint {
-        font-size: 10.5px; color: var(--text-3);
+        font-size: 10.5px;
+        color: var(--text-3);
       }
 
       /* ─── 两栏布局 ─── */
       .bld-two-col {
-        display: grid; grid-template-columns: 260px 1fr; gap: 16px;
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 16px;
         align-items: flex-start;
       }
-      .bld-left { position: sticky; top: 78px; }
-      .bld-right { min-width: 0; }
+
+      .bld-left {
+        position: sticky;
+        top: 78px;
+      }
+
+      .bld-right {
+        min-width: 0;
+      }
 
       /* ─── 左侧筛选面板 ─── */
       .left-filter-panel {
-        background: white; border: 1px solid var(--line);
+        background: white;
+        border: 1px solid var(--line);
         border-radius: 12px;
         padding: 16px;
         box-shadow: var(--shadow-md);
@@ -63,151 +119,340 @@
         height: 715px;
         overflow-y: auto;
       }
+
       .lfp-head {
-          display: flex; align-items: center; justify-content: space-between;
-          margin-bottom: 12px; padding-bottom: 12px;
-          border-bottom: 1px solid var(--line-soft);
-          height: 33px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--line-soft);
+        height: 33px;
       }
-      .is-hidden { visibility: hidden; }
+
+      .is-hidden {
+        visibility: hidden;
+      }
+
       .lfp-head-title {
-        display: flex; align-items: center; gap: 6px;
-        font-size: 13px; font-weight: 600; color: var(--text-0);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-0);
       }
+
       .lfp-active-count {
-        font-size: 10.5px; padding: 1px 6px;
-        background: var(--brand); color: white;
+        font-size: 10.5px;
+        padding: 1px 6px;
+        background: var(--brand);
+        color: white;
         border-radius: 999px;
       }
+
       .lfp-reset {
-        display: inline-flex; align-items: center; gap: 3px;
-        padding: 3px 8px; font-size: 11px;
-        background: transparent; border: 1px solid var(--line);
-        border-radius: 4px; cursor: pointer; color: var(--text-2);
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 3px 8px;
+        font-size: 11px;
+        background: transparent;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        cursor: pointer;
+        color: var(--text-2);
         font-family: inherit;
       }
-      .lfp-reset:hover { background: rgba(229,78,110,0.06); border-color: rgba(229,78,110,0.3); color: var(--danger); }
+
+      .lfp-reset:hover {
+        background: rgba(229, 78, 110, 0.06);
+        border-color: rgba(229, 78, 110, 0.3);
+        color: var(--danger);
+      }
 
       .lfp-group {
-        margin-bottom: 16px; padding-bottom: 14px;
+        margin-bottom: 16px;
+        padding-bottom: 14px;
         border-bottom: 1px dashed var(--line-soft);
       }
-      .lfp-group:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
-      .lfp-group-label {
-        display: flex; align-items: center; justify-content: space-between;
-        font-size: 11.5px; font-weight: 500; color: var(--text-1);
-        margin-bottom: 8px; letter-spacing: 0.3px;
+
+      .lfp-group:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+        margin-bottom: 0;
       }
-      .lfp-group-hint { font-size: 10.5px; color: var(--text-3); }
+
+      .lfp-group-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11.5px !important;
+        font-weight: 500 !important;
+        color: var(--text-1) !important;
+        margin-bottom: 8px;
+        letter-spacing: 0.3px;
+      }
+
+      .lfp-group-hint {
+        font-size: 10.5px;
+        color: var(--text-3);
+      }
 
       .func-check-grid {
-        display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px;
       }
+
       .func-check {
-        display: flex; align-items: center; gap: 5px;
-        padding: 5px 7px; font-size: 11px;
-        background: var(--bg-2); border: 1px solid transparent;
-        border-radius: 5px; cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 7px;
+        font-size: 11px;
+        background: #ffffff;
+        border: 1px solid var(--border-color, #e4e9f2);
+        border-radius: 5px;
+        cursor: pointer;
         transition: all 0.12s;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
       }
-      .func-check:hover { background: rgba(47,127,255,0.06); }
+
+      .func-check:hover {
+        background: rgba(47, 127, 255, 0.06);
+      }
+
       .func-check.on {
-        background: rgba(47,127,255,0.10);
-        border-color: rgba(47,127,255,0.30);
+        background: rgba(47, 127, 255, 0.10);
+        border-color: rgba(47, 127, 255, 0.30);
       }
-      .func-check input { display: none; }
-      .func-check-code { font-size: 10.5px; font-weight: 600; color: var(--brand); }
-      .func-check-name { color: var(--text-1); }
-      .func-check.on .func-check-name { color: var(--text-0); font-weight: 500; }
+
+      .func-check input {
+        display: none;
+      }
+
+      .func-check-code {
+        font-family: "JetBrains Mono", Consolas, Monaco, "Courier New", monospace !important;
+        font-size: 10.5px !important;
+        font-weight: 500 !important;
+        color: var(--brand, #2f7fff) !important;
+      }
+
+      .func-check-name {
+        color: var(--text-1, #38496b) !important;
+        font-weight: normal !important;
+      }
+
+      .func-check.on .func-check-name {
+        color: var(--text-0, #0f1d3d) !important;
+        font-weight: 500 !important;
+      }
 
       /* ─── 命中具体规则筛选(RuleFilter) ─── */
       .rf-series-row {
-        display: flex; align-items: center; gap: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
         margin: 10px 0 6px;
       }
-      .rf-series-row:first-child { margin-top: 0; }
+
+      .rf-series-row:first-child {
+        margin-top: 0;
+      }
+
       .rf-series-label {
-        font-size: 11px; font-weight: 500; color: var(--text-2);
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-2);
         letter-spacing: 0.2px;
       }
+
       .rf-select-all {
-        font-size: 10px; color: var(--text-3);
-        background: transparent; border: none; cursor: pointer;
-        padding: 0; font-family: inherit;
+        font-size: 10px;
+        color: var(--text-3);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        font-family: inherit;
       }
-      .rf-select-all:hover { color: var(--brand); text-decoration: underline; }
+
+      .rf-select-all:hover {
+        color: var(--brand);
+        text-decoration: underline;
+      }
+
       .rf-expand-btn {
-        display: inline-flex; align-items: center; gap: 2px;
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
         margin-left: auto;
-        font-size: 10.5px; color: var(--text-2);
-        background: transparent; border: none; cursor: pointer;
-        padding: 0; font-family: inherit;
+        font-size: 10.5px;
+        color: var(--text-2);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        font-family: inherit;
       }
-      .rf-expand-btn:hover { color: var(--brand); }
+
+      .rf-expand-btn:hover {
+        color: var(--brand);
+      }
 
       .rf-chip-grid {
-        display: flex; flex-wrap: wrap; gap: 5px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
       }
-      .rf-chip-grid.inline { gap: 4px; }
+
+      .rf-chip-grid.inline {
+        gap: 4px;
+      }
+
+      .left-filter-panel .rf-chip-grid .rf-chip,
+      .left-filter-panel .rf-s-row .rf-chip,
       .rf-chip {
-        font-family: "JetBrains Mono", monospace;
-        font-size: 10.5px; font-weight: 600; letter-spacing: 0.2px;
+        font-family: "JetBrains Mono", Consolas, Monaco, "Courier New", monospace !important;
+        font-size: 10.5px !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.2px;
         padding: 3px 7px;
-        background: white; border: 1px solid var(--line);
-        border-radius: 4px; cursor: pointer;
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        cursor: pointer;
         color: var(--text-2);
         transition: all 0.12s;
       }
-      .rf-chip:hover { border-color: var(--line-strong); }
-      .rf-chip.series-c.on { color: white; background: var(--series-c); border-color: var(--series-c); }
-      .rf-chip.series-d.on { color: white; background: var(--series-d); border-color: var(--series-d); }
-      .rf-chip.series-s.on { color: white; background: var(--series-s); border-color: var(--series-s); }
+
+      .rf-chip:hover {
+        border-color: var(--line-strong);
+      }
+
+      .rf-chip.series-c.on {
+        color: white;
+        background: var(--series-c);
+        border-color: var(--series-c);
+      }
+
+      .rf-chip.series-d.on {
+        color: white;
+        background: var(--series-d);
+        border-color: var(--series-d);
+      }
+
+      .rf-chip.series-s.on {
+        color: white;
+        background: var(--series-s);
+        border-color: var(--series-s);
+      }
 
       .rf-s-groups {
-        display: flex; flex-direction: column; gap: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
         padding-top: 4px;
       }
+
       .rf-s-row {
-        display: flex; align-items: center; gap: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
+
       .rf-s-func {
-        flex: none; width: 22px;
-        font-size: 10px; font-weight: 700; color: var(--text-3);
+        flex: none;
+        width: 22px;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--text-3);
       }
 
       /* ─── 右侧工具栏 ─── */
       .bld-toolbar {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 12px 16px; margin-bottom: 14px;
-        background: white; border: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        margin-bottom: 14px;
+        background: white;
+        border: 1px solid var(--line);
         border-radius: 10px;
       }
-      .bld-toolbar-left { display: flex; align-items: center; gap: 14px; }
-      .bld-toolbar-right { display: flex; align-items: center; gap: 12px; }
-      .bld-result-count {
-        font-size: 12px; color: var(--text-2);
-      }
-      .bld-result-count b { color: var(--text-0); font-size: 14px; }
-      .bld-result-count .dim { color: var(--text-3); }
 
-      .sort-group { display: flex; align-items: center; gap: 6px; }
-      .sort-label { font-size: 12px; color: var(--text-2); }
-      .sort-select { padding: 6px 28px 6px 10px; font-size: 12px; }
+      .bld-toolbar-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .bld-toolbar-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .bld-result-count {
+        font-size: 12px;
+        color: var(--text-2);
+      }
+
+      .bld-result-count b {
+        color: var(--text-0);
+        font-size: 14px;
+      }
+
+      .bld-result-count .dim {
+        color: var(--text-3);
+      }
+
+      .sort-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .sort-label {
+        font-size: 12px;
+        color: var(--text-2);
+      }
+
+      .sort-select {
+        padding: 6px 28px 6px 10px;
+        font-size: 12px;
+      }
 
       .view-toggle {
-        display: flex; gap: 0;
-        background: var(--bg-2); border: 1px solid var(--line);
-        border-radius: 6px; padding: 2px;
+        display: flex;
+        gap: 0;
+        background: var(--bg-2);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 2px;
       }
+
       .view-btn {
-        width: 28px; height: 26px; display: grid; place-items: center;
-        background: transparent; border: none; border-radius: 4px;
-        cursor: pointer; color: var(--text-2);
+        width: 28px;
+        height: 26px;
+        display: grid;
+        place-items: center;
+        background: transparent;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        color: var(--text-2);
       }
-      .view-btn:hover { color: var(--text-0); }
+
+      .view-btn:hover {
+        color: var(--text-0);
+      }
+
       .view-btn.active {
-        background: white; color: var(--brand);
-        box-shadow: 0 1px 3px rgba(60,110,200,0.10);
+        background: white;
+        color: var(--brand);
+        box-shadow: 0 1px 3px rgba(60, 110, 200, 0.10);
       }
 
       /* ─── 建筑卡片网格 ───
@@ -221,102 +466,167 @@
 
       /* ─── node-warn(仍被建筑详情页复用) ─── */
       .node-warn {
-        display: inline-flex; align-items: center; gap: 3px;
-        font-size: 10px; color: var(--warn);
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 10px;
+        color: var(--warn);
         padding: 2px 6px;
-        background: rgba(217,119,6,0.08);
-        border: 1px solid rgba(217,119,6,0.20);
+        background: rgba(217, 119, 6, 0.08);
+        border: 1px solid rgba(217, 119, 6, 0.20);
         border-radius: 3px;
       }
 
       /* ─── HitCountBadge ─── */
       .hit-badge {
-        display: flex; flex-direction: column; align-items: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         padding: 6px 12px;
-        border: 1px solid; border-radius: 10px;
+        border: 1px solid;
+        border-radius: 10px;
         min-width: 56px;
         line-height: 1;
       }
+
       .hit-num {
-        font-size: 22px; font-weight: 700;
+        font-size: 22px;
+        font-weight: 700;
         letter-spacing: -0.5px;
       }
+
       .hit-unit {
         font-size: 9.5px;
         margin-top: 3px;
         opacity: 0.7;
         letter-spacing: 0.3px;
       }
-      .hit-badge.sz-sm { padding: 4px 8px; min-width: 40px; }
-      .hit-badge.sz-sm .hit-num { font-size: 15px; }
+
+      .hit-badge.sz-sm {
+        padding: 4px 8px;
+        min-width: 40px;
+      }
+
+      .hit-badge.sz-sm .hit-num {
+        font-size: 15px;
+      }
 
       /* ─── BuildFuncTag / CategoryStatusChip / ArchiveStatusChip 样式
              已挪到全局 shared.css(这几个组件同时被 4.3 建筑详情页复用) ─── */
 
       /* ─── RuleChipsRow ─── */
       .rule-chips-row {
-        display: flex; flex-wrap: wrap; gap: 4px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
       }
+
       .rule-chip {
         display: inline-block;
         padding: 2px 7px;
-        font-size: 10.5px; font-weight: 600;
+        font-size: 10.5px;
+        font-weight: 600;
         font-family: "JetBrains Mono", monospace;
         border-radius: 3px;
         border: 1px solid;
         letter-spacing: 0.2px;
         cursor: default;
       }
+
       .rule-chip.series-C {
         color: var(--series-c);
-        background: rgba(47,127,255,0.08);
-        border-color: rgba(47,127,255,0.25);
+        background: rgba(47, 127, 255, 0.08);
+        border-color: rgba(47, 127, 255, 0.25);
       }
+
       .rule-chip.series-D {
         color: var(--series-d);
-        background: rgba(122,92,255,0.08);
-        border-color: rgba(122,92,255,0.28);
+        background: rgba(122, 92, 255, 0.08);
+        border-color: rgba(122, 92, 255, 0.28);
       }
+
       .rule-chip.series-S {
         color: var(--series-s);
-        background: rgba(148,163,184,0.10);
-        border-color: rgba(148,163,184,0.25);
+        background: rgba(148, 163, 184, 0.10);
+        border-color: rgba(148, 163, 184, 0.25);
       }
+
       .rule-chip.overflow {
         color: var(--text-2);
         background: var(--bg-3);
         border-color: var(--line);
       }
+
       .rule-chips-empty {
-        font-size: 11px; color: var(--text-3); font-style: italic;
+        font-size: 11px;
+        color: var(--text-3);
+        font-style: italic;
         padding: 2px 4px;
       }
 
       /* ─── 空态 / 底部提示 ─── */
       .bld-empty {
-        display: flex; flex-direction: column; align-items: center; gap: 12px;
-        padding: 80px 20px; background: white;
-        border: 1px dashed var(--line); border-radius: 12px;
-        color: var(--text-2); font-size: 13px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 80px 20px;
+        background: white;
+        border: 1px dashed var(--line);
+        border-radius: 12px;
+        color: var(--text-2);
+        font-size: 13px;
       }
+
       /* ─── 分页 ─── */
       .bld-pagination {
-        display: flex; align-items: center; justify-content: center; gap: 14px;
-        margin-top: 16px; padding: 10px 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        margin-top: 16px;
+        padding: 10px 0;
       }
+
       .page-btn {
-        display: grid; place-items: center;
-        width: 30px; height: 30px;
-        background: white; border: 1px solid var(--line);
-        border-radius: 6px; cursor: pointer; color: var(--text-1);
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        cursor: pointer;
+        color: var(--text-1);
       }
-      .page-btn:hover:not(:disabled) { border-color: var(--line-strong); color: var(--brand); }
-      .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-      .page-info { font-size: 12.5px; color: var(--text-2); }
-      .page-info b { color: var(--text-0); font-size: 14px; }
+
+      .page-btn:hover:not(:disabled) {
+        border-color: var(--line-strong);
+        color: var(--brand);
+      }
+
+      .page-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .page-info {
+        font-size: 12.5px;
+        color: var(--text-2);
+      }
+
+      .page-info b {
+        color: var(--text-0);
+        font-size: 14px;
+      }
 
       /* ─── 响应式:窄屏两栏折叠 ─── */
       @media (max-width: 1200px) {
-        .quick-filter-bar { grid-template-columns: repeat(3, 1fr); }
-        .bld-two-col { grid-template-columns: 220px 1fr; }
+        .quick-filter-bar {
+          grid-template-columns: repeat(3, 1fr);
+        }
+
+        .bld-two-col {
+          grid-template-columns: 220px 1fr;
+        }
       }

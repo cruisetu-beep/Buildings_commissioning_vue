@@ -14,7 +14,7 @@ const props = defineProps({
   allSelected: { type: Boolean, required: true },
   sSeriesLocked: { type: Boolean, default: false },
 });
-const emit = defineEmits(["toggle-select", "toggle-select-all", "toggle-enable", "edit"]);
+const emit = defineEmits(["toggle-select", "toggle-select-all", "toggle-enable", "edit", "delete"]);
 </script>
 
 <template>
@@ -85,9 +85,20 @@ const emit = defineEmits(["toggle-select", "toggle-select-all", "toggle-enable",
             />
           </td>
           <td class="col-action">
-            <button class="row-action-btn" title="编辑规则" @click="emit('edit', r)">
-              <Icon name="edit" :size="14" />
-            </button>
+            <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+              <button class="row-action-btn" title="编辑规则" @click="emit('edit', r)">
+                <Icon name="edit" :size="14" />
+              </button>
+              <button
+                class="row-action-btn"
+                title="删除规则"
+                :disabled="sSeriesLocked"
+                :style="{ color: sSeriesLocked ? 'var(--text-3)' : 'var(--danger)', cursor: sSeriesLocked ? 'not-allowed' : 'pointer' }"
+                @click="emit('delete', r)"
+              >
+                <Icon name="trash" :size="14" />
+              </button>
+            </div>
           </td>
         </tr>
       </tbody>

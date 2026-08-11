@@ -72,9 +72,7 @@ const filters = defineModel({ required: true }); // { q, priority, enabled }
         >
           <Icon name="x" :size="13" /> 批量停用
         </button>
-        <div class="filter-divider" />
       </template>
-      <button class="btn ghost sm"><Icon name="download" :size="13" /> 导出</button>
     </div>
   </div>
 </template>

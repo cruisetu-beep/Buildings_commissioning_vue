@@ -111,12 +111,18 @@ export async function updateRule(cxRuleId, patch) {
     const keys = Object.keys(patch);
     if (keys.length === 1 && keys[0] === 'isEnabled') {
       const success = await httpPost(`${API_PREFIX}/toggleRuleStatus`, {}, { ruleId: cxRuleId });
+      if (success) {
+        cachedRules = null;
+      }
       return success ? { cxRuleId, ...patch } : null;
     }
 
     // 直接提交完整数据，无需再查一次详情（调用方已持有完整数据）
     const data = { cxRuleId, ...patch };
     const success = await httpPost(`${API_PREFIX}/updateRule`, data);
+    if (success) {
+      cachedRules = null;
+    }
     return success ? data : null;
   } catch (error) {
     console.error("updateRule failed:", error);
@@ -128,9 +134,26 @@ export async function updateRule(cxRuleId, patch) {
 export async function createRule(data) {
   try {
     const success = await httpPost(`${API_PREFIX}/createRule`, data);
+    if (success) {
+      cachedRules = null;
+    }
     return success ? data : null;
   } catch (error) {
     console.error("createRule failed:", error);
+    throw error;
+  }
+}
+
+/** 删除单条规则 */
+export async function deleteRule(cxRuleId) {
+  try {
+    const success = await httpPost(`${API_PREFIX}/deleteRule`, {}, { ruleId: cxRuleId });
+    if (success) {
+      cachedRules = null;
+    }
+    return success;
+  } catch (error) {
+    console.error("deleteRule failed:", error);
     throw error;
   }
 }

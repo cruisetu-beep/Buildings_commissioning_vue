@@ -36,6 +36,7 @@ const initial = ref({});
 const form = reactive({});
 const saved = ref(false);
 const savedFields = ref([]);
+const submitting = ref(false);
 
 const toast = ref({
   show: false,
@@ -77,22 +78,29 @@ const changedKeys = computed(() => Object.keys(initial.value).filter((k) => form
 const isDirty = computed(() => changedKeys.value.length > 0);
 
 const onSave = async () => {
-  if (!isDirty.value || isSeriesLocked.value) return;
-  savedFields.value = changedKeys.value;
-  saved.value = true;
+  if (!isDirty.value || isSeriesLocked.value || submitting.value) return;
+  submitting.value = true;
   
-  // 1. 调用后端接口更新，将现有规则的完整属性和表单修改合并发送，避免缺少必填字段导致 400 错误
-  // 修正：将 thresholdDesc 映射回 brief 发给后端
-  const payload = { ...rule.value, ...form, brief: form.thresholdDesc };
-  await updateRule(rule.value.cxRuleId, payload);
-  
-  // 2. 替换 rule 的整个引用，迫使 Vue 深度更新顶部及所有依赖 rule 属性的 UI
-  rule.value = { ...rule.value, ...form, brief: form.thresholdDesc };
-  
-  // 3. 重新调用初始加载表单方法，重置 initial 基线并对齐 form
-  initForm();
-  
-  setTimeout(() => (saved.value = false), 4000);
+  try {
+    savedFields.value = changedKeys.value;
+    
+    // 1. 调用后端接口更新，将现有规则的完整属性和表单修改合并发送，避免缺少必填字段导致 400 错误
+    // 修正：将 thresholdDesc 映射回 brief 发给后端
+    const payload = { ...rule.value, ...form, brief: form.thresholdDesc };
+    await updateRule(rule.value.cxRuleId, payload);
+    
+    // 2. 替换 rule 的整个引用，迫使 Vue 深度更新顶部及所有依赖 rule 属性的 UI
+    rule.value = { ...rule.value, ...form, brief: form.thresholdDesc };
+    
+    // 3. 重新调用初始加载表单方法，重置 initial 基线并对齐 form
+    initForm();
+    saved.value = true;
+    setTimeout(() => (saved.value = false), 4000);
+  } catch (error) {
+    showToast("保存失败: " + error.message, "error");
+  } finally {
+    submitting.value = false;
+  }
 };
 
 const onCancel = () => {
@@ -107,7 +115,8 @@ const onJumpToMatrix = () => {
 </script>
 
 <template>
-  <div v-if="rule" class="page-view float-in">
+  <div class="rule-detail-page-container">
+    <div v-if="rule" class="page-view float-in">
     <Breadcrumb :items="['楼宇调适分析工作台', '判定规则', '规则详情']" />
 
     <!-- ─── 详情页头部 ─── -->
@@ -159,11 +168,11 @@ const onJumpToMatrix = () => {
         </button>
         <button
           class="btn primary"
-          :disabled="!isDirty || isSeriesLocked"
+          :disabled="!isDirty || isSeriesLocked || submitting"
           :title="isSeriesLocked ? 'S系规则当前批次不可编辑' : ''"
           @click="onSave"
         >
-          <Icon name="check" :size="13" /> 保存并立即生效
+          <Icon name="check" :size="13" /> {{ submitting ? '保存中...' : '保存并立即生效' }}
         </button>
       </div>
     </div>
@@ -329,23 +338,7 @@ const onJumpToMatrix = () => {
     <!-- ─── 规则手册折叠区 ─── -->
     <ManualCollapse :rule="rule" />
 
-    <!-- ─── 底部快捷跳转 ─── -->
-    <div class="detail-quick-links">
-      <button class="quick-link-btn">
-        <Icon name="target" :size="14" stroke="var(--brand)" />
-        <div>
-          <div class="ql-title">查看命中该规则的建筑清单</div>
-          <div class="ql-sub">→ 页面 4.2 · 规则维度视图(待第二批)</div>
-        </div>
-      </button>
-      <button class="quick-link-btn">
-        <Icon name="flask" :size="14" stroke="var(--brand)" />
-        <div>
-          <div class="ql-title">查看该规则的算法可视化</div>
-          <div class="ql-sub">→ 页面 5.2 · 计算过程与数据</div>
-        </div>
-      </button>
-    </div>
+
   </div>
 
   <div v-else-if="!loading" class="page-view float-in">
@@ -365,6 +358,7 @@ const onJumpToMatrix = () => {
     <button class="toast-close" @click="toast.show = false">
       <Icon name="x" :size="12" />
     </button>
+  </div>
   </div>
 </template>
 

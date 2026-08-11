@@ -26,7 +26,6 @@ const onImportSaved = async () => {
 const year = ref(2025);
 const quick = ref("target"); // 默认目标调适全量
 const sortKey = ref("hitCount");
-const viewMode = ref("card"); // card / table(预留)
 const search = ref("");
 const filters = reactive({ funcs: [], hitMin: 0, hitMax: 10, archives: [], rules: [] });
 
@@ -134,7 +133,6 @@ const onOpenBuilding = (b) => {
             <option :value="2024" disabled>2024 · 暂无数据</option>
           </select>
         </div>
-        <button class="btn ghost"><Icon name="download" :size="14" /> 导出清单</button>
       </div>
     </div>
 
@@ -169,14 +167,6 @@ const onOpenBuilding = (b) => {
                 <option value="buildId">建筑ID</option>
               </select>
             </div>
-            <div class="view-toggle">
-              <button class="view-btn" :class="{ active: viewMode === 'card' }" title="卡片视图" @click="viewMode = 'card'">
-                <Icon name="layers" :size="14" />
-              </button>
-              <button class="view-btn" :class="{ active: viewMode === 'table' }" title="表格视图(待第二批)" @click="viewMode = 'table'">
-                <Icon name="list" :size="14" />
-              </button>
-            </div>
           </div>
         </div>
 
@@ -187,17 +177,12 @@ const onOpenBuilding = (b) => {
           <div class="empty-sub">尝试调整筛选条件或搜索关键词</div>
           <button class="btn ghost sm" @click="resetFilters"><Icon name="x" :size="12" /> 重置筛选</button>
         </div>
-        <div v-else-if="viewMode === 'card'" class="bld-grid">
+        <div v-else class="bld-grid">
           <BuildingCard v-for="b in paged" :key="b.buildId" :building="b" @click="onOpenBuilding(b)" />
-        </div>
-        <div v-else class="bld-empty">
-          <Icon name="list" :size="36" stroke="#c5cee0" />
-          <div>表格视图待第二批实现</div>
-          <button class="btn ghost sm" @click="viewMode = 'card'"><Icon name="layers" :size="12" /> 切回卡片视图</button>
         </div>
 
         <!-- 分页 -->
-        <div v-if="viewMode === 'card' && sorted.length > 0" class="bld-pagination">
+        <div v-if="sorted.length > 0" class="bld-pagination">
           <button class="page-btn" :disabled="page === 1" @click="page--">
             <Icon name="chevron-l" :size="14" />
           </button>

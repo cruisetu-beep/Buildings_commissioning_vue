@@ -34,6 +34,7 @@ const form = reactive({
 
 const saved = ref(false);
 const savedFields = ref([]);
+const submitting = ref(false);
 
 const toast = ref({
   show: false,
@@ -110,6 +111,8 @@ const isDirty = computed(() => {
 });
 
 const onSave = async () => {
+  if (submitting.value) return;
+
   errors.ruleCode = "";
   errors.name = "";
 
@@ -127,6 +130,8 @@ const onSave = async () => {
     showToast("请修正表单中的错误项", "error");
     return;
   }
+
+  submitting.value = true;
 
   const payload = {
     ruleCode: form.ruleCode.trim(),
@@ -155,6 +160,7 @@ const onSave = async () => {
     }, 1500);
   } catch (error) {
     showToast("创建规则失败: " + error.message, "error");
+    submitting.value = false;
   }
 };
 
@@ -186,8 +192,8 @@ const onCancel = async () => {
         <button class="btn ghost" @click="onCancel">
           <Icon name="x" :size="13" /> 取消并返回
         </button>
-        <button class="btn primary" @click="onSave">
-          <Icon name="check" :size="13" /> 保存并创建规则
+        <button class="btn primary" :disabled="submitting" @click="onSave">
+          <Icon name="check" :size="13" /> {{ submitting ? '保存中...' : '保存并创建规则' }}
         </button>
       </div>
     </div>

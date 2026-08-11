@@ -2,7 +2,7 @@
 /* ═══════════════════════════════════════════════════════════════
    RulesListPage · 页面 1.1 判定规则清单
    ═══════════════════════════════════════════════════════════════ */
-import { ref, reactive, computed, watch, onMounted } from "vue";
+import { ref, reactive, computed, watch, onMounted, onActivated } from "vue";
 import { useRouter } from "vue-router";
 import Breadcrumb from "../../components/layout/Breadcrumb.vue";
 import Icon from "../../components/icons/Icon.vue";
@@ -10,9 +10,11 @@ import SubTabs from "../../components/rules/SubTabs.vue";
 import SSeriesBanner from "../../components/rules/SSeriesBanner.vue";
 import FilterBar from "../../components/rules/FilterBar.vue";
 import RulesTable from "../../components/rules/RulesTable.vue";
-import { fetchRules, updateRule } from "../../data/rules-api.js";
+import { fetchRules, updateRule, deleteRule } from "../../data/rules-api.js";
 
 const router = useRouter();
+
+import { ElMessage, ElMessageBox } from "element-plus";
 
 const tab = ref(sessionStorage.getItem("rules_active_tab") || "C");
 const filters = reactive({ q: "", priority: "all", enabled: "all" });
@@ -20,9 +22,23 @@ const selectedIds = ref([]);
 const rules = ref([]);
 const loading = ref(true);
 
-onMounted(async () => {
+let isFirstMount = true;
+
+const loadRules = async () => {
+  loading.value = true;
   rules.value = await fetchRules();
   loading.value = false;
+};
+
+onMounted(async () => {
+  await loadRules();
+  isFirstMount = false;
+});
+
+onActivated(async () => {
+  if (!isFirstMount) {
+    await loadRules();
+  }
 });
 
 const counts = computed(() => ({
@@ -74,15 +90,32 @@ const toggleSelectAll = (checked) => {
 };
 const onToggleEnable = async (id, v) => {
   rules.value = rules.value.map((r) => (r.cxRuleId === id ? { ...r, isEnabled: v } : r));
-  await updateRule(id, { isEnabled: v });
+  try {
+    await updateRule(id, { isEnabled: v });
+    ElMessage.success(`规则状态已更新为：${v ? '已启用' : '已停用'}`);
+  } catch (e) {
+    ElMessage.error("更新状态失败");
+  }
 };
 const onBulkEnable = async () => {
   rules.value = rules.value.map((r) => (selectedIds.value.includes(r.cxRuleId) ? { ...r, isEnabled: true } : r));
-  await Promise.all(selectedIds.value.map((id) => updateRule(id, { isEnabled: true })));
+  try {
+    await Promise.all(selectedIds.value.map((id) => updateRule(id, { isEnabled: true })));
+    ElMessage.success("已成功启用所选规则");
+  } catch (e) {
+    ElMessage.error("批量启用失败");
+  }
+  selectedIds.value = [];
 };
 const onBulkDisable = async () => {
   rules.value = rules.value.map((r) => (selectedIds.value.includes(r.cxRuleId) ? { ...r, isEnabled: false } : r));
-  await Promise.all(selectedIds.value.map((id) => updateRule(id, { isEnabled: false })));
+  try {
+    await Promise.all(selectedIds.value.map((id) => updateRule(id, { isEnabled: false })));
+    ElMessage.success("已成功停用所选规则");
+  } catch (e) {
+    ElMessage.error("批量停用失败");
+  }
+  selectedIds.value = [];
 };
 
 const onOpenEdit = (rule) => {
@@ -91,6 +124,27 @@ const onOpenEdit = (rule) => {
 
 const onOpenCreate = () => {
   router.push("/rules/new");
+};
+
+const onDeleteRule = async (rule) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除判定规则 "${rule.name}" (${rule.cxRuleId}) 吗？`,
+      "提示",
+      {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning"
+      }
+    );
+    await deleteRule(rule.cxRuleId);
+    rules.value = rules.value.filter((r) => r.cxRuleId !== rule.cxRuleId);
+    ElMessage.success("删除成功");
+  } catch (e) {
+    if (e !== "cancel") {
+      ElMessage.error("删除失败: " + (e.message || e));
+    }
+  }
 };
 </script>
 
@@ -113,7 +167,6 @@ const onOpenCreate = () => {
         </div>
       </div>
       <div class="page-head-actions">
-        <button class="btn ghost"><Icon name="upload" :size="14" /> 导入规则</button>
         <button class="btn primary" @click="onOpenCreate"><Icon name="plus" :size="14" /> 新增规则</button>
       </div>
     </div>
@@ -142,14 +195,11 @@ const onOpenCreate = () => {
         @toggle-select-all="toggleSelectAll"
         @toggle-enable="onToggleEnable"
         @edit="onOpenEdit"
+        @delete="onDeleteRule"
       />
 
       <div class="table-footer">
-        <div class="footer-hint">
-          <Icon name="info" :size="12" stroke="#6a7da3" />
-          <span>规则的判定标准、计算方法、自动选窗策略等详细信息请在 <b>规则详情页(1.2)</b> 查看和编辑</span>
-        </div>
-        <div class="footer-meta mono">
+        <div class="footer-meta mono" style="margin-left: auto;">
           数据源:<code class="inline-code">T_ST_CxRule</code> · {{ rules.length }} rows · 最后更新 2026-06-29
         </div>
       </div>

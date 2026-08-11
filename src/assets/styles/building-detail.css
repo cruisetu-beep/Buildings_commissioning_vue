@@ -39,6 +39,11 @@
         margin-left: 14px;
       }
 
+      .bd-head-stats .func-tag {
+        height: 26px;
+        box-sizing: border-box;
+      }
+
       /* 统计 chip · 通用骨架 */
       .bd-stat-chip {
         display: inline-flex;
