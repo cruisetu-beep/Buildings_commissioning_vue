@@ -37,40 +37,15 @@ function parseJson(w) {
   }
 }
 
-/* metrics 的判据合取。与下方"判定依据"表用的是同一批比较，
-   避免出现"表里三条全 ✓、结论却说未触发"的自相矛盾。 */
-function metricsPass(m) {
-  if (!m) return null;
-  const checks = [];
-  if (m.silhouetteScore !== undefined && m.threshold !== undefined)
-    checks.push(Number(m.silhouetteScore) >= Number(m.threshold));
-  if (m.clusterDiff !== undefined && m.diffThreshold !== undefined)
-    checks.push(Number(m.clusterDiff) >= Number(m.diffThreshold));
-  if (m.standbyOk !== undefined) checks.push(m.standbyOk === true);
-  return checks.length ? checks.every(Boolean) : null;
+/* 窗口的判定类别。权威来源是后端 calcResult.category（窗口级），
+   取不到时退回规则级 category。
+   注意：不要用 window.isTriggered——该字段对 C01 各窗口恒为 false，
+   与 calcResult.category 不一致，含义待后端澄清。 */
+function winCategory(w) {
+  return w?.calcResult?.category || props.result?.category || "";
 }
-
-/* 是否触发。优先级：
-     ① resultJSON.metrics 的判据合取 —— 与"判定依据"表用的是同一批比较，
-        它是页面上唯一有据可查的证据链，必须以它为准，否则会出现
-        "表里三条全 ✓、结论却说未触发"这种自相矛盾。
-     ② 后端布尔字段 isTriggered —— metrics 不可用时才采信。
-     ③ 规则级判定类别 —— 前两者都缺时的兜底。
-   ⚠ 已知：后端目前对 C01 各窗口返回 isTriggered=false，但 metrics 三条
-   判据全部满足。二者含义是否一致待后端确认，冲突时在控制台留痕。 */
 function isWinTriggered(w) {
-  const p = metricsPass(parseJson(w)?.metrics);
-  if (p !== null) {
-    if (typeof w?.isTriggered === "boolean" && w.isTriggered !== p) {
-      console.warn(
-        `[v2] 窗口触发判定不一致：后端 isTriggered=${w.isTriggered}，metrics 判据=${p}。已按 metrics 显示。`,
-        w
-      );
-    }
-    return p;
-  }
-  if (typeof w?.isTriggered === "boolean") return w.isTriggered;
-  return props.result?.category === "目标调适";
+  return winCategory(w) === "目标调适";
 }
 
 const trigCount = computed(() => windows.value.filter(isWinTriggered).length);
@@ -133,6 +108,11 @@ function fmtDate(s) {
 }
 
 const triggered = computed(() => isWinTriggered(activeWindow.value));
+const activeCategory = computed(() => winCategory(activeWindow.value));
+/* t 触发 / n 正常 / o 其他（待核查、配置错误、数据异常、虚拟预测愈合…） */
+const tone = computed(() =>
+  activeCategory.value === "目标调适" ? "t" : activeCategory.value === "正常" ? "n" : "o"
+);
 
 const verdictText = computed(() => {
   if (!meta.value || !vals.value) return "";
@@ -236,7 +216,11 @@ const readHint = computed(() => meta.value?.readHint?.[view.value] || "");
             :class="{ on: i === winIdx }"
             @click="winIdx = i"
           >
-            <span class="v2-win-mark" :class="isWinTriggered(w) ? 't' : 'n'">{{ isWinTriggered(w) ? "!" : "✓" }}</span>
+            <span
+              class="v2-win-mark"
+              :class="isWinTriggered(w) ? 't' : winCategory(w) === '正常' ? 'n' : 'o'"
+              :title="winCategory(w)"
+            >{{ isWinTriggered(w) ? "!" : winCategory(w) === "正常" ? "✓" : "?" }}</span>
             <span>
               <span class="wn">窗口 {{ i + 1 }}</span>
               <span class="wd mono">{{ w.label || `${w.dateFrom} – ${w.dateTo}` }}</span>
@@ -247,9 +231,9 @@ const readHint = computed(() => meta.value?.readHint?.[view.value] || "");
       </div>
 
       <!-- ⓪ 结论 -->
-      <div v-if="verdictText" class="v2-verdict" :class="triggered ? 't' : 'n'">
+      <div v-if="verdictText" class="v2-verdict" :class="tone">
         <div class="v2-v-head">
-          <span class="v2-v-badge" :class="triggered ? 't' : 'n'">{{ triggered ? "触发" : "未触发" }}</span>
+          <span class="v2-v-badge" :class="tone">{{ activeCategory || (triggered ? "触发" : "未触发") }}</span>
           <span class="v2-v-title">{{ verdictTitle }}</span>
           <span class="v2-v-rule mono">{{ result.ruleCode }} · 窗口 {{ winIdx + 1 }}</span>
         </div>
