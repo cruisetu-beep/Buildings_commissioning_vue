@@ -88,10 +88,72 @@ const C01 = {
   },
 };
 
+/* ── D05 工作日/周末/节假日耗电差异判定（CR0018 · E 类作息日对）──
+   注意两点：
+   1. 不使用 metrics.eWork / eHol。二者恰为 hourlyProfiles 积分的 4 倍
+      （后端疑似把 96 个 15 分钟读数直接求和），显示出来会与图对不上。
+      R 是比值，4 倍约掉，照用。
+   2. 判定方向按业态分组而不同（间歇型 R 过高触发、客流型偏低触发…），
+      所以句子里不写"高于/低于门槛"，方向交给判定依据表的 ✓/✕，
+      而那一格直接取后端 metrics.passed，不由前端复算。 */
+const D05 = {
+  narrative: {
+    triggered:
+      "节假日 {holDate}（{holWeek}）与同温工作日 {wdDate}（{wdWeek}）相比，" +
+      "两天日均温度为 {holTemp} °C 与 {wdTemp} °C、相差 {tDelta} °C。" +
+      "节假日全天用电为工作日的 <b>{residual}</b>（{group}组门槛 {residualThreshold}）。" +
+      "工作日日间峰值 <b>{wdPeak} kW</b>、夜间低谷 {wdBase} kW；节假日全天在 {holBase} – <b>{holPeak} kW</b> 之间。",
+    normal:
+      "节假日 {holDate}（{holWeek}）与同温工作日 {wdDate}（{wdWeek}）相比，" +
+      "节假日全天用电为工作日的 <b>{residual}</b>，未触发 {group}组的 {residualThreshold} 门槛。",
+  },
+  title: { triggered: "节假日用电未随作息回落", normal: "节假日用电已随作息回落" },
+  steps: [
+    {
+      kind: "stated",
+      what: "配对同温日",
+      sub: "为节假日匹配温度最接近的工作日，排除天气差异带来的干扰",
+      val: "{wdDate} / {holDate}",
+      req: "—",
+    },
+    {
+      kind: "test",
+      what: "两天温度够不够接近",
+      sub: "日均干球温度之差，超出则这一对不可比",
+      val: "{tDelta} °C",
+      req: "≤ {tThreshold} °C",
+      key: "tempMatch",
+    },
+    {
+      kind: "test",
+      what: "空载能耗残留率",
+      sub: "节假日全天用电占同温工作日的比例（{group}组）",
+      val: "{residual}",
+      req: "门槛 {residualThreshold}",
+      key: "residual",
+    },
+  ],
+  foot: {
+    triggered: "判据满足 → 判定为 <b>目标调适</b>",
+    normal: "判据未满足 → 判定为 <b>正常</b>",
+  },
+  /* 取自手册 D05 节（原规则 3+15）的工程学依据，未添加解释性补充 */
+  causes: [
+    "节假日未切换至值班模式，冷热源与输配设备按工作日时间表运行",
+    "楼宇自控时间表未录入法定节假日日历",
+    "新风机组或排风机全天定频运行，无节假日降载策略",
+  ],
+  readHint: {
+    day: "两条曲线是同温的一个工作日和一个节假日；节假日曲线下的面积占工作日面积的比例，就是空载残留率。",
+  },
+};
+
 /* 已填写的规则；未填写的返回 null，页面据此隐藏叙述层但保留图表 */
 const NARRATIVES = {
   C01,
   CR0016: C01, // 同一条规则的两种编号写法
+  D05,
+  CR0018: D05,
 };
 
 /* 后端 ruleCode 可能带前后缀或大小写差异，做一次归一化再匹配 */

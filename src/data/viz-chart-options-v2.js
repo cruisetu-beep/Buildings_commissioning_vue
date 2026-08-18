@@ -237,3 +237,118 @@ export function buildClusterDistOption(d, xName = "设备电耗 (kW)") {
     ],
   };
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   E 类 · 作息日对（schedule）
+   D05 等规则用：同温的工作日 / 节假日各一条 24 小时曲线，
+   两条曲线下的面积之比就是空载残留率 R，所以用面积图，
+   让 R 直接成为图形本身，而不是另贴一个数字。
+   ═══════════════════════════════════════════════════════════════ */
+
+const WEEK_CN = {
+  Monday: "周一", Tuesday: "周二", Wednesday: "周三", Thursday: "周四",
+  Friday: "周五", Saturday: "周六", Sunday: "周日",
+};
+const GROUP_CN = {
+  Intermittent: "间歇运营",
+  Traffic: "客流型",
+  Continuous: "24 小时连续型",
+};
+
+export function parseSchedule(raw) {
+  if (!raw) return null;
+  const wd = raw.hourlyProfiles?.workday;
+  const hol = raw.hourlyProfiles?.holiday;
+  if (!Array.isArray(wd) || !Array.isArray(hol) || !wd.length) return null;
+
+  const w0 = raw.windows?.[0] || {};
+  const tm = w0.temperatureMatch || {};
+  const m = raw.metrics || {};
+
+  const hours = wd.map((_, i) => `${String(i).padStart(2, "0")}:00`);
+  return {
+    hours,
+    workday: wd,
+    holiday: hol,
+    wdDate: w0.workday?.date || "",
+    holDate: w0.holiday?.date || "",
+    wdWeek: WEEK_CN[w0.workday?.label] || w0.workday?.label || "",
+    holWeek: WEEK_CN[w0.holiday?.label] || w0.holiday?.label || "",
+    wdTemp: tm.wdAvg,
+    holTemp: tm.holAvg,
+    tDelta: tm.delta,
+    tThreshold: tm.threshold,
+    residual: m.residualRate,
+    residualThreshold: m.groupThreshold,
+    passed: m.passed,
+    group: GROUP_CN[raw.group] || raw.group || "",
+    /* 曲线自身的统计量。刻意不使用 metrics.eWork / eHol：
+       两者恰为曲线积分的 4 倍（后端疑似把 96 个 15 分钟读数直接求和），
+       直接显示会与图对不上。R 是比值不受影响，照用。 */
+    wdPeak: Math.max(...wd),
+    wdBase: Math.min(...wd),
+    holPeak: Math.max(...hol),
+    holBase: Math.min(...hol),
+  };
+}
+
+export function buildScheduleOption(d, yName = "空调用电 (kW)") {
+  const all = [...d.workday, ...d.holiday];
+  const min = Math.max(0, Math.floor(Math.min(...all) * 0.9));
+  const max = Math.ceil(Math.max(...all) * 1.08);
+
+  const line = (name, data, color) => ({
+    name,
+    type: "line",
+    smooth: true,
+    symbol: "circle",
+    symbolSize: 3,
+    data,
+    lineStyle: { width: 2, color },
+    itemStyle: { color },
+    areaStyle: { color, opacity: 0.12 },
+    emphasis: { focus: "series" },
+  });
+
+  return {
+    grid: { left: 66, right: 26, top: 46, bottom: 52 },
+    legend: { top: 6, right: 10, itemWidth: 14, itemHeight: 2, textStyle: { color: COLOR.axisName, fontSize: 11 } },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "#fff",
+      borderColor: "rgba(60,110,200,.2)",
+      textStyle: { color: "#0f1d3d", fontSize: 12 },
+      axisPointer: { type: "line", lineStyle: { color: "rgba(60,110,200,.25)" } },
+    },
+    xAxis: {
+      type: "category",
+      data: d.hours,
+      boundaryGap: false,
+      name: "时刻",
+      nameLocation: "middle",
+      nameGap: 34,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      axisLine: { lineStyle: { color: COLOR.line } },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 10, interval: (i) => i % 3 === 0 },
+      splitLine: { show: true, lineStyle: { color: "rgba(60,110,200,.05)" } },
+    },
+    yAxis: {
+      type: "value",
+      name: yName,
+      nameLocation: "middle",
+      nameGap: 46,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      min,
+      max,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11 },
+      splitLine: { lineStyle: { color: COLOR.split } },
+    },
+    series: [
+      line(`工作日 ${d.wdDate.slice(5)} ${d.wdWeek}`, d.workday, "#2f7fff"),
+      line(`节假日 ${d.holDate.slice(5)} ${d.holWeek}`, d.holiday, "#f59a52"),
+    ],
+  };
+}

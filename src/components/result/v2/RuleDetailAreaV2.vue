@@ -10,11 +10,14 @@
    ═══════════════════════════════════════════════════════════════ */
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
 import * as echarts from "echarts";
+import MarkdownView from "../../common/MarkdownView.vue";
 import { getRuleNarrative, fillTemplate } from "../../../data/rule-narrative.js";
 import {
   parseClustering,
   buildClusterTimeOption,
   buildClusterDistOption,
+  parseSchedule,
+  buildScheduleOption,
 } from "../../../data/viz-chart-options-v2.js";
 
 const props = defineProps({
@@ -68,44 +71,88 @@ const rawJson = computed(() => parseJson(activeWindow.value));
 const visualType = computed(
   () => activeWindow.value?.calcResult?.visualType || props.result?.visualType || ""
 );
-const isClustering = computed(
-  () => visualType.value === "A" || rawJson.value?.type === "clustering"
-);
-const cluster = computed(() => (isClustering.value ? parseClustering(rawJson.value) : null));
+
+/* ─── 可视化：按 resultJSON.type 分发 ───
+   目前实现 clustering(A) 与 schedule(E)。新增类型时在此加一支，
+   并同步扩充 vals / stepPassed / VIEWS 三处。 */
+const vizKind = computed(() => rawJson.value?.type || "");
+const cluster = computed(() => (vizKind.value === "clustering" ? parseClustering(rawJson.value) : null));
+const schedule = computed(() => (vizKind.value === "schedule" ? parseSchedule(rawJson.value) : null));
+const hasViz = computed(() => !!(cluster.value || schedule.value));
+
+const VIEWS = {
+  clustering: [
+    { k: "time", label: "按时间看" },
+    { k: "dist", label: "看分布" },
+    { k: "data", label: "数据" },
+  ],
+  schedule: [
+    { k: "day", label: "按时刻看" },
+    { k: "data", label: "数据" },
+  ],
+};
+const views = computed(() => VIEWS[vizKind.value] || []);
 
 /* ─── 模板取值 ─── */
 const meta = computed(() => getRuleNarrative(props.result?.ruleCode));
 
-const vals = computed(() => {
-  const w = activeWindow.value;
-  const c = cluster.value;
-  const j = rawJson.value;
-  if (!w || !c || !j) return null;
-  const m = j.metrics || {};
-  const pct = (v) => (Number.isFinite(Number(v)) ? `${(Number(v) * 100).toFixed(1)}%` : "—");
-  const days = j.windowDays?.length || c.days.length;
-  return {
-    start: fmtDate(w.dateFrom || c.days[0]),
-    end: fmtDate(w.dateTo || c.days[c.days.length - 1]),
-    days,
-    temp: j.temperatureRange?.target ?? "—",
-    tempDelta: j.temperatureRange?.delta ?? "—",
-    n: c.n,
-    mu1: c.mu1,
-    mu2: c.mu2,
-    sil: Number.isFinite(Number(m.silhouetteScore)) ? Number(m.silhouetteScore).toFixed(2) : "—",
-    silThreshold: m.threshold ?? "—",
-    delta: pct(m.clusterDiff),
-    deltaThreshold: pct(m.diffThreshold),
-    _m: m,
-  };
-});
+const pct = (v) => (Number.isFinite(Number(v)) ? `${(Number(v) * 100).toFixed(1)}%` : "—");
+const num = (v, d = 2) => (Number.isFinite(Number(v)) ? Number(Number(v).toFixed(d)) : "—");
 
 function fmtDate(s) {
   if (!s) return "—";
   const p = String(s).slice(0, 10).split("-");
   return p.length === 3 ? `${p[1]}月${p[2]}日` : s;
 }
+
+const vals = computed(() => {
+  const w = activeWindow.value;
+  const j = rawJson.value;
+  if (!w || !j) return null;
+  const m = j.metrics || {};
+
+  if (cluster.value) {
+    const c = cluster.value;
+    return {
+      start: fmtDate(w.dateFrom || c.days[0]),
+      end: fmtDate(w.dateTo || c.days[c.days.length - 1]),
+      days: j.windowDays?.length || c.days.length,
+      temp: j.temperatureRange?.target ?? "—",
+      tempDelta: j.temperatureRange?.delta ?? "—",
+      n: c.n,
+      mu1: c.mu1,
+      mu2: c.mu2,
+      sil: num(m.silhouetteScore),
+      silThreshold: m.threshold ?? "—",
+      delta: pct(m.clusterDiff),
+      deltaThreshold: pct(m.diffThreshold),
+      _m: m,
+    };
+  }
+
+  if (schedule.value) {
+    const d = schedule.value;
+    return {
+      wdDate: fmtDate(d.wdDate),
+      holDate: fmtDate(d.holDate),
+      wdWeek: d.wdWeek,
+      holWeek: d.holWeek,
+      wdTemp: num(d.wdTemp, 1),
+      holTemp: num(d.holTemp, 1),
+      tDelta: num(d.tDelta, 2),
+      tThreshold: num(d.tThreshold, 1),
+      residual: pct(d.residual),
+      residualThreshold: pct(d.residualThreshold),
+      group: d.group,
+      wdPeak: num(d.wdPeak, 1),
+      wdBase: num(d.wdBase, 1),
+      holPeak: num(d.holPeak, 1),
+      holBase: num(d.holBase, 1),
+      _m: m,
+    };
+  }
+  return null;
+});
 
 const triggered = computed(() => isWinTriggered(activeWindow.value));
 const activeCategory = computed(() => winCategory(activeWindow.value));
@@ -125,9 +172,18 @@ const verdictTitle = computed(() =>
 
 /* ─── 判定依据 ─── */
 function stepPassed(key, m) {
+  /* A 类 */
   if (key === "sil") return Number(m.silhouetteScore) >= Number(m.threshold);
   if (key === "delta") return Number(m.clusterDiff) >= Number(m.diffThreshold);
   if (key === "standby") return m.standbyOk === true;
+  /* E 类 */
+  if (key === "tempMatch") {
+    const tm = rawJson.value?.windows?.[0]?.temperatureMatch;
+    return tm ? Number(tm.delta) <= Number(tm.threshold) : null;
+  }
+  /* 残留率的比较方向按业态分组而不同（间歇型过高触发、客流型偏低触发），
+     不在前端复刻，直接取后端结论：passed=false 即判据满足、指向触发。 */
+  if (key === "residual") return m.passed === false;
   return null;
 }
 const steps = computed(() => {
@@ -152,18 +208,25 @@ function toggle(k) {
 
 /* ─── 图表 ─── */
 const view = ref("time");
+watch(views, (list) => {
+  if (list.length && !list.some((v) => v.k === view.value)) view.value = list[0].k;
+}, { immediate: true });
 const chartEl = ref(null);
 let chart = null;
 
 function render() {
-  const c = cluster.value;
-  if (!chartEl.value || !c || view.value === "data") return;
+  if (!chartEl.value || view.value === "data" || !hasViz.value) return;
   if (!chart) chart = echarts.init(chartEl.value);
-  const yName = rawJson.value?.yName || "设备电耗 (kW)";
-  chart.setOption(
-    view.value === "time" ? buildClusterTimeOption(c, yName) : buildClusterDistOption(c, yName),
-    true
-  );
+  let option = null;
+  if (cluster.value) {
+    const yName = rawJson.value?.yName || "设备电耗 (kW)";
+    option = view.value === "dist"
+      ? buildClusterDistOption(cluster.value, yName)
+      : buildClusterTimeOption(cluster.value, yName);
+  } else if (schedule.value) {
+    option = buildScheduleOption(schedule.value);
+  }
+  if (option) chart.setOption(option, true);
 }
 function resize() {
   chart && chart.resize();
@@ -185,6 +248,7 @@ onBeforeUnmount(() => {
 watch([cluster, view], () => nextTick(render));
 
 const readHint = computed(() => meta.value?.readHint?.[view.value] || "");
+const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
 </script>
 
 <template>
@@ -246,17 +310,22 @@ const readHint = computed(() => meta.value?.readHint?.[view.value] || "");
           <span class="v2-ar">▶</span>
           <span class="v2-cond">计算过程</span>
           <span class="v2-cond-txt">{{ activeWindow?.meteoCondition || "—" }}</span>
-          <div v-if="cluster" class="v2-seg" @click.stop>
-            <button :class="{ on: view === 'time' }" @click="setView('time')">按时间看</button>
-            <button :class="{ on: view === 'dist' }" @click="setView('dist')">看分布</button>
-            <button :class="{ on: view === 'data' }" @click="setView('data')">数据</button>
+          <div v-if="views.length" class="v2-seg" @click.stop>
+            <button
+              v-for="v in views"
+              :key="v.k"
+              :class="{ on: view === v.k }"
+              @click="setView(v.k)"
+            >{{ v.label }}</button>
           </div>
         </div>
         <div class="v2-block-b">
-          <template v-if="cluster">
+          <template v-if="hasViz">
             <div v-if="view !== 'data' && readHint" class="v2-read-hint">{{ readHint }}</div>
             <div v-show="view !== 'data'" ref="chartEl" class="v2-chart" />
-            <div v-if="view === 'data'" class="v2-tblwrap">
+
+            <!-- A 类：聚类采样点 -->
+            <div v-if="view === 'data' && cluster" class="v2-tblwrap">
               <table class="v2-dt">
                 <thead>
                   <tr><th>#</th><th>时刻</th><th>{{ rawJson?.yName || "设备电耗 (kW)" }}</th><th>归属档位</th></tr>
@@ -267,6 +336,28 @@ const readHint = computed(() => meta.value?.readHint?.[view.value] || "");
                     <td class="mono">{{ r.day }} {{ r.time }}</td>
                     <td class="mono">{{ r.e.toFixed(2) }}</td>
                     <td :class="r.high ? 'chip-high' : 'chip-low'">{{ r.high ? "高档" : "低档" }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- E 类：工作日 / 节假日逐时对照 -->
+            <div v-if="view === 'data' && schedule" class="v2-tblwrap">
+              <table class="v2-dt">
+                <thead>
+                  <tr>
+                    <th>时刻</th>
+                    <th>工作日 {{ schedule.wdDate.slice(5) }}</th>
+                    <th>节假日 {{ schedule.holDate.slice(5) }}</th>
+                    <th>差值</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(h, i) in schedule.hours" :key="h">
+                    <td class="mono">{{ h }}</td>
+                    <td class="mono">{{ schedule.workday[i] }}</td>
+                    <td class="mono">{{ schedule.holiday[i] }}</td>
+                    <td class="mono">{{ (schedule.workday[i] - schedule.holiday[i]).toFixed(2) }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -325,7 +416,8 @@ const readHint = computed(() => meta.value?.readHint?.[view.value] || "");
           <span class="v2-ar">▶</span>算法与判定标准
         </div>
         <div class="v2-block-b">
-          <div class="v2-placeholder">算法说明与判定标准待接入</div>
+          <MarkdownView v-if="algoMd" :source="algoMd" class="v2-algo-md" />
+          <div v-else class="v2-placeholder">该窗口暂无算法说明</div>
         </div>
       </div>
     </div>
