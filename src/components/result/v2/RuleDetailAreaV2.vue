@@ -245,7 +245,9 @@ onBeforeUnmount(() => {
   chart && chart.dispose();
   chart = null;
 });
-watch([cluster, view], () => nextTick(render));
+/* 监听 rawJson 而不是 cluster/schedule：切换窗口时 rawJson 必然变化，
+   而某一类的解析结果在另一类下恒为 null，只盯其中一个会漏掉切换。 */
+watch([rawJson, view], () => nextTick(render));
 
 const readHint = computed(() => meta.value?.readHint?.[view.value] || "");
 const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
