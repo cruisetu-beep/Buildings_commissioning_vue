@@ -239,6 +239,134 @@ export function buildClusterDistOption(d, xName = "设备电耗 (kW)") {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   B 类 · 能学签名回归（regression）
+   D02 等规则用：制冷季逐时的（干球温度，空调电耗）散点 + OLS 拟合直线。
+   这里的横轴是逐点实测温度，与 A 类不同——A 类的等温窗口内温度恒等，
+   没有横轴信息量；B 类的温度是自变量本身，必须照实画。
+   ═══════════════════════════════════════════════════════════════ */
+
+export function parseRegression(raw) {
+  if (!raw) return null;
+  const pts = raw.dataPoints;
+  const reg = raw.regression;
+  if (!Array.isArray(pts) || !pts.length || !reg) return null;
+
+  const rows = pts
+    .map((p) => {
+      const t = Number(p.t_db);
+      const e = Number(p.energy);
+      return Number.isFinite(t) && Number.isFinite(e) ? [t, e] : null;
+    })
+    .filter(Boolean);
+  if (!rows.length) return null;
+
+  const m = raw.metrics || {};
+  const [tMin, tMax] = reg.temperatureRange || [
+    Math.min(...rows.map((r) => r[0])),
+    Math.max(...rows.map((r) => r[0])),
+  ];
+  const k = Number(reg.slope_k);
+  const b = Number(reg.intercept_b);
+
+  return {
+    rows,
+    slope: k,
+    intercept: b,
+    r2: Number(reg.rSquared),
+    n: reg.n ?? rows.length,
+    tMin,
+    tMax,
+    formula: reg.formula || "",
+    /* 拟合直线只在样本温度区间内画，不外推 */
+    line: [
+      [tMin, k * tMin + b],
+      [tMax, k * tMax + b],
+    ],
+    r2Threshold: m.rSquaredThreshold,
+    slopeLimit: m.slopeLimit,
+    r2Passed: m.r2Passed,
+    slopePassed: m.slopePassed,
+    eMin: Math.min(...rows.map((r) => r[1])),
+    eMax: Math.max(...rows.map((r) => r[1])),
+  };
+}
+
+export function buildRegressionOption(d, yName = "空调系统总电耗 (kW)") {
+  /* 纵轴下界要能容下拟合直线的起点——若直线在低温端落到负值，
+     那本身就是拟合质量的信号，不做裁剪。 */
+  const lineLow = Math.min(d.line[0][1], d.line[1][1]);
+  const min = Math.floor(Math.min(d.eMin, lineLow, 0) - 4);
+  const max = Math.ceil(d.eMax * 1.06);
+
+  return {
+    grid: { left: 66, right: 26, top: 46, bottom: 52 },
+    legend: {
+      top: 6,
+      right: 10,
+      itemWidth: 12,
+      itemHeight: 8,
+      textStyle: { color: COLOR.axisName, fontSize: 11 },
+      data: ["逐时实测", "回归拟合线"],
+    },
+    tooltip: {
+      trigger: "item",
+      backgroundColor: "#fff",
+      borderColor: "rgba(60,110,200,.2)",
+      textStyle: { color: "#0f1d3d", fontSize: 12 },
+      formatter: (p) =>
+        p.seriesName === "逐时实测"
+          ? `干球温度 <b>${p.data[0]} °C</b><br/>空调电耗 <b>${p.data[1]} kW</b>`
+          : `拟合线：${d.formula}`,
+    },
+    xAxis: {
+      type: "value",
+      name: "室外干球温度 (°C)",
+      nameLocation: "middle",
+      nameGap: 34,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      min: Math.floor(d.tMin - 0.5),
+      max: Math.ceil(d.tMax + 0.5),
+      axisLine: { lineStyle: { color: COLOR.line } },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11 },
+      splitLine: { lineStyle: { color: "rgba(60,110,200,.06)" } },
+    },
+    yAxis: {
+      type: "value",
+      name: yName,
+      nameLocation: "middle",
+      nameGap: 46,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      min,
+      max,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11 },
+      splitLine: { lineStyle: { color: COLOR.split } },
+    },
+    series: [
+      {
+        name: "逐时实测",
+        type: "scatter",
+        data: d.rows,
+        symbolSize: 4,
+        large: true,
+        largeThreshold: 1000,
+        itemStyle: { color: "#2f7fff", opacity: 0.3 },
+      },
+      {
+        name: "回归拟合线",
+        type: "line",
+        data: d.line,
+        symbol: "none",
+        lineStyle: { color: "#e54e6e", width: 2 },
+        z: 5,
+      },
+    ],
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════
    E 类 · 作息日对（schedule）
    D05 等规则用：同温的工作日 / 节假日各一条 24 小时曲线，
    两条曲线下的面积之比就是空载残留率 R，所以用面积图，

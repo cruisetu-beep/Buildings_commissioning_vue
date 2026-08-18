@@ -18,6 +18,8 @@ import {
   buildClusterDistOption,
   parseSchedule,
   buildScheduleOption,
+  parseRegression,
+  buildRegressionOption,
 } from "../../../data/viz-chart-options-v2.js";
 
 const props = defineProps({
@@ -78,7 +80,8 @@ const visualType = computed(
 const vizKind = computed(() => rawJson.value?.type || "");
 const cluster = computed(() => (vizKind.value === "clustering" ? parseClustering(rawJson.value) : null));
 const schedule = computed(() => (vizKind.value === "schedule" ? parseSchedule(rawJson.value) : null));
-const hasViz = computed(() => !!(cluster.value || schedule.value));
+const regression = computed(() => (vizKind.value === "regression" ? parseRegression(rawJson.value) : null));
+const hasViz = computed(() => !!(cluster.value || schedule.value || regression.value));
 
 const VIEWS = {
   clustering: [
@@ -88,6 +91,10 @@ const VIEWS = {
   ],
   schedule: [
     { k: "day", label: "按时刻看" },
+    { k: "data", label: "数据" },
+  ],
+  regression: [
+    { k: "scat", label: "散点与拟合" },
     { k: "data", label: "数据" },
   ],
 };
@@ -151,6 +158,23 @@ const vals = computed(() => {
       _m: m,
     };
   }
+  if (regression.value) {
+    const r = regression.value;
+    return {
+      start: fmtDate(w.dateFrom),
+      end: fmtDate(w.dateTo),
+      n: r.n,
+      tMin: r.tMin,
+      tMax: r.tMax,
+      slope: num(r.slope),
+      intercept: num(r.intercept),
+      formula: r.formula,
+      r2: pct(r.r2),
+      r2Threshold: pct(r.r2Threshold),
+      slopeLimit: num(r.slopeLimit),
+      _m: m,
+    };
+  }
   return null;
 });
 
@@ -184,6 +208,10 @@ function stepPassed(key, m) {
   /* 残留率的比较方向按业态分组而不同（间歇型过高触发、客流型偏低触发），
      不在前端复刻，直接取后端结论：passed=false 即判据满足、指向触发。 */
   if (key === "residual") return m.passed === false;
+  /* B 类。要求列写的是合格条件，所以 ✓ 表示达标；
+     该规则是"有一项不达标即触发"，结论由 foot 给出。 */
+  if (key === "r2") return m.r2Passed === true;
+  if (key === "slope") return m.slopePassed === true;
   return null;
 }
 const steps = computed(() => {
@@ -225,6 +253,8 @@ function render() {
       : buildClusterTimeOption(cluster.value, yName);
   } else if (schedule.value) {
     option = buildScheduleOption(schedule.value);
+  } else if (regression.value) {
+    option = buildRegressionOption(regression.value);
   }
   if (option) chart.setOption(option, true);
 }
@@ -250,6 +280,18 @@ onBeforeUnmount(() => {
 watch([rawJson, view], () => nextTick(render));
 
 const readHint = computed(() => meta.value?.readHint?.[view.value] || "");
+/* 建议核查。两种写法：
+   - 字符串数组：该规则只有一种故障模式，恒显示
+   - 分组数组：仅显示 metrics[whenFalse] === false 的那些组，
+     避免给 R² 不达标的楼推送"新风阀开度过大"这类无关方向 */
+const causeGroups = computed(() => {
+  const c = meta.value?.causes;
+  if (!Array.isArray(c) || !c.length) return [];
+  if (typeof c[0] === "string") return [{ title: "", items: c }];
+  const m = rawJson.value?.metrics || {};
+  return c.filter((g) => m[g.whenFalse] === false);
+});
+
 const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
 </script>
 
@@ -364,6 +406,21 @@ const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
                 </tbody>
               </table>
             </div>
+            <!-- B 类：逐时（温度，电耗）样本 -->
+            <div v-if="view === 'data' && regression" class="v2-tblwrap">
+              <table class="v2-dt">
+                <thead>
+                  <tr><th>#</th><th>室外干球温度 (°C)</th><th>空调系统总电耗 (kW)</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(r, i) in regression.rows" :key="i">
+                    <td class="mono">{{ i + 1 }}</td>
+                    <td class="mono">{{ r[0] }}</td>
+                    <td class="mono">{{ r[1] }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </template>
           <div v-else class="v2-placeholder">
             {{ visualType ? `${visualType} 类图表待实现` : "该窗口暂无计算过程数据" }}
@@ -377,10 +434,13 @@ const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
           <span class="v2-ar">▶</span>建议核查<span class="hint">面向现场调适</span>
         </div>
         <div class="v2-block-b">
-          <template v-if="meta">
-            <ol class="v2-causes">
-              <li v-for="(c, i) in meta.causes" :key="i"><span class="n">{{ i + 1 }}</span><span>{{ c }}</span></li>
-            </ol>
+          <template v-if="causeGroups.length">
+            <div v-for="(g, gi) in causeGroups" :key="gi" class="v2-cause-grp">
+              <div v-if="g.title" class="v2-cause-title">{{ g.title }}</div>
+              <ol class="v2-causes">
+                <li v-for="(c, i) in g.items" :key="i"><span class="n">{{ i + 1 }}</span><span>{{ c }}</span></li>
+              </ol>
+            </div>
           </template>
           <div v-else class="v2-placeholder">
             规则 {{ result.ruleCode }} 的核查项尚未录入（rule-narrative.js）

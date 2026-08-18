@@ -222,6 +222,10 @@
 .v2-steps-foot.n b { color: var(--status-normal); }
 
 /* ─── 建议核查 ─── */
+.v2-cause-grp + .v2-cause-grp { border-top: 1px solid var(--line-soft); }
+.v2-cause-title {
+  padding: 10px 14px 0; font-size: 12px; font-weight: 600; color: var(--warn);
+}
 .v2-causes { list-style: none; margin: 0; padding: 10px 14px 12px; }
 .v2-causes li { display: flex; gap: 9px; padding: 6px 0; font-size: 12.5px; color: var(--text-1); line-height: 1.6; }
 .v2-causes li .n {
