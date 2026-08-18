@@ -26,7 +26,39 @@ const emit = defineEmits(["open-detail"]);
 const windows = computed(() => props.result?.windows || []);
 const winIdx = ref(0);
 const activeWindow = computed(() => windows.value[winIdx.value] || null);
-const trigCount = computed(() => windows.value.filter((w) => w.isTriggered).length);
+
+function parseJson(w) {
+  const s = w?.calcResult?.resultJson;
+  if (!s) return null;
+  try {
+    return typeof s === "string" ? JSON.parse(s) : s;
+  } catch (e) {
+    return null;
+  }
+}
+
+/* metrics 的判据合取。与下方"判定依据"表用的是同一批比较，
+   避免出现"表里三条全 ✓、结论却说未触发"的自相矛盾。 */
+function metricsPass(m) {
+  if (!m) return null;
+  const checks = [];
+  if (m.silhouetteScore !== undefined && m.threshold !== undefined)
+    checks.push(Number(m.silhouetteScore) >= Number(m.threshold));
+  if (m.clusterDiff !== undefined && m.diffThreshold !== undefined)
+    checks.push(Number(m.clusterDiff) >= Number(m.diffThreshold));
+  if (m.standbyOk !== undefined) checks.push(m.standbyOk === true);
+  return checks.length ? checks.every(Boolean) : null;
+}
+
+/* 是否触发：① 后端布尔字段 → ② 按 metrics 自行判定 → ③ 退回规则级判定类别 */
+function isWinTriggered(w) {
+  if (typeof w?.isTriggered === "boolean") return w.isTriggered;
+  const p = metricsPass(parseJson(w)?.metrics);
+  if (p !== null) return p;
+  return props.result?.category === "目标调适";
+}
+
+const trigCount = computed(() => windows.value.filter(isWinTriggered).length);
 const winSummary = computed(() =>
   trigCount.value === windows.value.length && windows.value.length ? "全部触发" : `${trigCount.value} 个触发`
 );
@@ -35,22 +67,14 @@ const winSummary = computed(() =>
 watch(
   () => props.result?.ruleCode,
   () => {
-    const i = windows.value.findIndex((w) => w.isTriggered);
+    const i = windows.value.findIndex(isWinTriggered);
     winIdx.value = i >= 0 ? i : 0;
   },
   { immediate: true }
 );
 
 /* ─── resultJSON ─── */
-const rawJson = computed(() => {
-  const s = activeWindow.value?.calcResult?.resultJson;
-  if (!s) return null;
-  try {
-    return typeof s === "string" ? JSON.parse(s) : s;
-  } catch (e) {
-    return null;
-  }
-});
+const rawJson = computed(() => parseJson(activeWindow.value));
 const visualType = computed(
   () => activeWindow.value?.calcResult?.visualType || props.result?.visualType || ""
 );
@@ -93,7 +117,7 @@ function fmtDate(s) {
   return p.length === 3 ? `${p[1]}月${p[2]}日` : s;
 }
 
-const triggered = computed(() => !!activeWindow.value?.isTriggered);
+const triggered = computed(() => isWinTriggered(activeWindow.value));
 
 const verdictText = computed(() => {
   if (!meta.value || !vals.value) return "";
@@ -197,7 +221,7 @@ const readHint = computed(() => meta.value?.readHint?.[view.value] || "");
             :class="{ on: i === winIdx }"
             @click="winIdx = i"
           >
-            <span class="v2-win-mark" :class="w.isTriggered ? 't' : 'n'">{{ w.isTriggered ? "!" : "✓" }}</span>
+            <span class="v2-win-mark" :class="isWinTriggered(w) ? 't' : 'n'">{{ isWinTriggered(w) ? "!" : "✓" }}</span>
             <span>
               <span class="wn">窗口 {{ i + 1 }}</span>
               <span class="wd mono">{{ w.label || `${w.dateFrom} – ${w.dateTo}` }}</span>
@@ -256,15 +280,20 @@ const readHint = computed(() => meta.value?.readHint?.[view.value] || "");
       </div>
 
       <!-- ② 建议核查 -->
-      <div v-if="meta && triggered" class="v2-block" :class="{ open: open.advice }">
+      <div v-if="triggered" class="v2-block" :class="{ open: open.advice }">
         <div class="v2-block-h" @click="toggle('advice')">
           <span class="v2-ar">▶</span>建议核查<span class="hint">面向现场调适</span>
         </div>
         <div class="v2-block-b">
-          <ol class="v2-causes">
-            <li v-for="(c, i) in meta.causes" :key="i"><span class="n">{{ i + 1 }}</span><span>{{ c }}</span></li>
-          </ol>
-          <div class="v2-caliber">{{ meta.caliber }}</div>
+          <template v-if="meta">
+            <ol class="v2-causes">
+              <li v-for="(c, i) in meta.causes" :key="i"><span class="n">{{ i + 1 }}</span><span>{{ c }}</span></li>
+            </ol>
+            <div class="v2-caliber">{{ meta.caliber }}</div>
+          </template>
+          <div v-else class="v2-placeholder">
+            规则 {{ result.ruleCode }} 的核查项尚未录入（rule-narrative.js）
+          </div>
         </div>
       </div>
 

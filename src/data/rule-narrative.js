@@ -84,9 +84,15 @@ const NARRATIVES = {
   CR0016: C01, // 同一条规则的两种编号写法
 };
 
+/* 后端 ruleCode 可能带前后缀或大小写差异，做一次归一化再匹配 */
+function normalize(code) {
+  return String(code).trim().toUpperCase().replace(/[\s_-]/g, "");
+}
+const NORMALIZED = Object.fromEntries(Object.entries(NARRATIVES).map(([k, v]) => [normalize(k), v]));
+
 export function getRuleNarrative(code) {
   if (!code) return null;
-  return NARRATIVES[code] || NARRATIVES[String(code).toUpperCase()] || null;
+  return NORMALIZED[normalize(code)] || null;
 }
 
 /* 把模板里的 {key} 换成 vals 里的值；缺值时原样保留，便于发现漏字段 */
