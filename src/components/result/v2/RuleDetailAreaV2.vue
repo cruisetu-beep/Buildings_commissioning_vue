@@ -319,16 +319,13 @@ const readHint = computed(() => meta.value?.readHint?.[view.value] || "");
         </div>
       </div>
 
-      <!-- ④ 算法与公式 -->
-      <div v-if="result.judgmentStandard" class="v2-block" :class="{ open: open.algo }">
+      <!-- ④ 算法与判定标准 —— 骨架保留，内容待接入 -->
+      <div class="v2-block" :class="{ open: open.algo }">
         <div class="v2-block-h" @click="toggle('algo')">
           <span class="v2-ar">▶</span>算法与判定标准
         </div>
         <div class="v2-block-b">
-          <div class="v2-algo">{{ result.judgmentStandard }}</div>
-          <div v-if="activeWindow?.calcResult?.formulaSubstitution" class="v2-algo mono sub">
-            {{ activeWindow.calcResult.formulaSubstitution }}
-          </div>
+          <div class="v2-placeholder">算法说明与判定标准待接入</div>
         </div>
       </div>
     </div>
