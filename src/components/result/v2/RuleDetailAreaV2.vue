@@ -50,11 +50,26 @@ function metricsPass(m) {
   return checks.length ? checks.every(Boolean) : null;
 }
 
-/* 是否触发：① 后端布尔字段 → ② 按 metrics 自行判定 → ③ 退回规则级判定类别 */
+/* 是否触发。优先级：
+     ① resultJSON.metrics 的判据合取 —— 与"判定依据"表用的是同一批比较，
+        它是页面上唯一有据可查的证据链，必须以它为准，否则会出现
+        "表里三条全 ✓、结论却说未触发"这种自相矛盾。
+     ② 后端布尔字段 isTriggered —— metrics 不可用时才采信。
+     ③ 规则级判定类别 —— 前两者都缺时的兜底。
+   ⚠ 已知：后端目前对 C01 各窗口返回 isTriggered=false，但 metrics 三条
+   判据全部满足。二者含义是否一致待后端确认，冲突时在控制台留痕。 */
 function isWinTriggered(w) {
-  if (typeof w?.isTriggered === "boolean") return w.isTriggered;
   const p = metricsPass(parseJson(w)?.metrics);
-  if (p !== null) return p;
+  if (p !== null) {
+    if (typeof w?.isTriggered === "boolean" && w.isTriggered !== p) {
+      console.warn(
+        `[v2] 窗口触发判定不一致：后端 isTriggered=${w.isTriggered}，metrics 判据=${p}。已按 metrics 显示。`,
+        w
+      );
+    }
+    return p;
+  }
+  if (typeof w?.isTriggered === "boolean") return w.isTriggered;
   return props.result?.category === "目标调适";
 }
 
