@@ -297,12 +297,14 @@ export function buildScheduleOption(d, yName = "空调用电 (kW)") {
   const min = Math.max(0, Math.floor(Math.min(...all) * 0.9));
   const max = Math.ceil(Math.max(...all) * 1.08);
 
+  /* hourlyProfiles 是逐时聚合值——每个数代表该小时的平均功率，不是瞬时采样。
+     用阶梯图（每小时一个平台）如实表达；平滑曲线会在两个小时之间插出数据里
+     没有的弧度，还会让峰值超过真实最大值。 */
   const line = (name, data, color) => ({
     name,
     type: "line",
-    smooth: true,
-    symbol: "circle",
-    symbolSize: 3,
+    step: "end",
+    symbol: "none",
     data,
     lineStyle: { width: 2, color },
     itemStyle: { color },
