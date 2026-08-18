@@ -105,6 +105,11 @@ watch([quick, search, sortKey, filters], () => {
 const onOpenBuilding = (b) => {
   router.push(`/result/${b.buildId}`);
 };
+
+/* 新版详情页入口(临时:v2 页面验证期间使用,验证结束后可整块移除) */
+const onOpenBuildingV2 = (b) => {
+  router.push(`/result-v2/${b.buildId}`);
+};
 </script>
 
 <template>
@@ -178,7 +183,7 @@ const onOpenBuilding = (b) => {
           <button class="btn ghost sm" @click="resetFilters"><Icon name="x" :size="12" /> 重置筛选</button>
         </div>
         <div v-else class="bld-grid">
-          <BuildingCard v-for="b in paged" :key="b.buildId" :building="b" @click="onOpenBuilding(b)" />
+          <BuildingCard v-for="b in paged" :key="b.buildId" :building="b" @click="onOpenBuilding(b)" @open-v2="onOpenBuildingV2(b)" />
         </div>
 
         <!-- 分页 -->

@@ -10,6 +10,7 @@ const routes = [
 
   { path: "/result", name: "result-list", component: () => import("../views/result/BuildingListPage.vue") },
   { path: "/result/:id", name: "result-detail", component: () => import("../views/result/BuildingDetailPage.vue") },
+  { path: "/result-v2/:id", name: "result-detail-v2", component: () => import("../views/result/BuildingDetailV2Page.vue") },
 
   { path: "/building-batch-sort", name: "building-batch-sort", component: () => import("../views/buildingSort/BuildingBatchSortPage.vue") },
 

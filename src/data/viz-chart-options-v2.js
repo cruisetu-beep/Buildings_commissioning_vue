@@ -1,0 +1,239 @@
+/* ═══════════════════════════════════════════════════════════════
+   判定结果 v2 · 图表 option builder
+
+   与旧版 viz-chart-options.js 的区别：
+   - 旧版 A 类把 hour 线性映射成温度画散点。C01 的等温窗口内所有点
+     温度恒等（后端 temperatureRange.target 是单值），那条横轴是构造
+     出来的，没有物理含义。本文件不再这么画。
+   - 新版 A 类提供两个视图：
+       time  三日日内曲线叠放（时刻为横轴）
+       dist  一维分布（电耗为横轴，时刻仅用于把点摊开）
+
+   目前只实现 A 类。B/C/D/E 各类等拿到真实 resultJSON 后再加。
+   ═══════════════════════════════════════════════════════════════ */
+
+const COLOR = {
+  low: "#8b7ff0",
+  high: "#f59a52",
+  highText: "#e08b2f",
+  axis: "#97a4c0",
+  axisName: "#6a7da3",
+  line: "rgba(60,110,200,.2)",
+  split: "rgba(60,110,200,.09)",
+  days: ["#2f7fff", "#18a572", "#e54e6e"],
+};
+
+/* 解析 A 类 resultJSON → 画图与叙述都用这一份结果，保证两者不打架 */
+export function parseClustering(raw) {
+  if (!raw) return null;
+  const pts = raw.dataPoints || [];
+  if (!pts.length) return null;
+
+  const mu1 = Number(raw.clusters?.c1?.center);
+  const mu2 = Number(raw.clusters?.c2?.center);
+  if (!Number.isFinite(mu1) || !Number.isFinite(mu2)) return null;
+
+  /* 着色边界取两簇中点。对已核对的真实数据，该边界切出的高档点数
+     与后端 clusters.c2.points 的条数一致。 */
+  const mid = (mu1 + mu2) / 2;
+
+  const rows = pts
+    .map((p) => {
+      const e = Number(p.energy);
+      if (!Number.isFinite(e)) return null;
+      const [day, time] = String(p.hour || "").split("T");
+      if (!day || !time) return null;
+      const [hh, mm] = time.split(":").map(Number);
+      return { day, time: time.slice(0, 5), hh, mm, e, high: e > mid };
+    })
+    .filter(Boolean);
+
+  if (!rows.length) return null;
+
+  const days = [...new Set(rows.map((r) => r.day))];
+  const slots = [...new Set(rows.map((r) => r.time))].sort();
+
+  return {
+    rows,
+    days,
+    slots,
+    mu1: +mu1.toFixed(2),
+    mu2: +mu2.toFixed(2),
+    mid,
+    n: rows.length,
+    lowCount: rows.filter((r) => !r.high).length,
+    highCount: rows.filter((r) => r.high).length,
+  };
+}
+
+function yBounds(d) {
+  const es = d.rows.map((r) => r.e);
+  return { min: Math.max(0, Math.floor(Math.min(...es) - 8)), max: Math.ceil(Math.max(...es) + 8) };
+}
+
+function centreLines(d) {
+  return {
+    silent: true,
+    symbol: "none",
+    label: { fontSize: 11, position: "insideEndTop" },
+    data: [
+      {
+        yAxis: d.mu1,
+        lineStyle: { color: COLOR.low, type: "dashed", width: 1 },
+        label: { formatter: `低档平均 ${d.mu1} kW`, color: COLOR.low },
+      },
+      {
+        yAxis: d.mu2,
+        lineStyle: { color: COLOR.high, type: "dashed", width: 1 },
+        label: { formatter: `高档平均 ${d.mu2} kW`, color: COLOR.highText },
+      },
+    ],
+  };
+}
+
+/* ── 视图一：三日日内曲线叠放 ── */
+export function buildClusterTimeOption(d, yName = "设备电耗 (kW)") {
+  const { min, max } = yBounds(d);
+  const byDay = {};
+  d.rows.forEach((r) => {
+    (byDay[r.day] = byDay[r.day] || {})[r.time] = r.e;
+  });
+
+  const series = d.days.map((day, i) => ({
+    name: day.slice(5).replace("-", "/"),
+    type: "line",
+    symbol: "circle",
+    symbolSize: 4,
+    connectNulls: true,
+    data: d.slots.map((s) => (byDay[day][s] === undefined ? null : byDay[day][s])),
+    lineStyle: { width: 1.8, color: COLOR.days[i % COLOR.days.length] },
+    itemStyle: { color: COLOR.days[i % COLOR.days.length] },
+    emphasis: { focus: "series" },
+  }));
+  if (series.length) series[0].markLine = centreLines(d);
+
+  return {
+    grid: { left: 66, right: 26, top: 46, bottom: 52 },
+    legend: { top: 6, right: 10, itemWidth: 14, itemHeight: 2, textStyle: { color: COLOR.axisName, fontSize: 11 } },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "#fff",
+      borderColor: "rgba(60,110,200,.2)",
+      textStyle: { color: "#0f1d3d", fontSize: 12 },
+      axisPointer: { type: "line", lineStyle: { color: "rgba(60,110,200,.25)" } },
+    },
+    xAxis: {
+      type: "category",
+      data: d.slots,
+      boundaryGap: false,
+      name: "时刻（多日叠放）",
+      nameLocation: "middle",
+      nameGap: 34,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      axisLine: { lineStyle: { color: COLOR.line } },
+      axisTick: { show: false },
+      axisLabel: {
+        color: COLOR.axis,
+        fontSize: 10,
+        interval: (i, v) => v.endsWith(":00") && Number(v.slice(0, 2)) % 2 === 1,
+      },
+      splitLine: { show: true, lineStyle: { color: "rgba(60,110,200,.05)" } },
+    },
+    yAxis: {
+      type: "value",
+      name: yName,
+      nameLocation: "middle",
+      nameGap: 46,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      min,
+      max,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11 },
+      splitLine: { lineStyle: { color: COLOR.split } },
+    },
+    series,
+  };
+}
+
+/* ── 视图二：一维分布（横轴电耗，纵轴时刻仅用于摊开）── */
+export function buildClusterDistOption(d, xName = "设备电耗 (kW)") {
+  const { min, max } = yBounds(d);
+  const slotIndex = Object.fromEntries(d.slots.map((s, i) => [s, i]));
+  const low = [];
+  const high = [];
+  d.rows.forEach((r) => {
+    (r.high ? high : low).push([r.e, slotIndex[r.time], `${r.day} ${r.time}`]);
+  });
+
+  const markCentre = (value, color, text) => ({
+    silent: true,
+    symbol: "none",
+    label: { fontSize: 11, position: "insideEndTop" },
+    data: [{ xAxis: value, lineStyle: { color, type: "dashed", width: 1 }, label: { formatter: text, color } }],
+  });
+
+  return {
+    grid: { left: 66, right: 26, top: 46, bottom: 52 },
+    legend: { top: 6, right: 10, itemWidth: 9, itemHeight: 9, textStyle: { color: COLOR.axisName, fontSize: 11 } },
+    tooltip: {
+      trigger: "item",
+      backgroundColor: "#fff",
+      borderColor: "rgba(60,110,200,.2)",
+      textStyle: { color: "#0f1d3d", fontSize: 12 },
+      formatter: (p) => `${p.data[2]}<br/>设备电耗 <b>${p.data[0].toFixed(2)} kW</b><br/>归属 ${p.seriesName}`,
+    },
+    xAxis: {
+      type: "value",
+      name: xName,
+      nameLocation: "middle",
+      nameGap: 34,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      min,
+      max,
+      axisLine: { lineStyle: { color: COLOR.line } },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11 },
+      splitLine: { lineStyle: { color: "rgba(60,110,200,.06)" } },
+    },
+    yAxis: {
+      type: "value",
+      name: "时刻",
+      nameLocation: "middle",
+      nameGap: 46,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      min: -1,
+      max: d.slots.length,
+      inverse: true,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: {
+        color: COLOR.axis,
+        fontSize: 11,
+        formatter: (v) => {
+          const s = d.slots[v];
+          return s && s.endsWith(":00") ? s : "";
+        },
+      },
+      splitLine: { lineStyle: { color: "rgba(60,110,200,.06)" } },
+    },
+    series: [
+      {
+        name: `低档簇（${d.lowCount} 点）`,
+        type: "scatter",
+        symbolSize: 8,
+        data: low,
+        itemStyle: { color: COLOR.low, opacity: 0.75 },
+        markLine: markCentre(d.mu1, COLOR.low, `低档簇心 ${d.mu1}`),
+      },
+      {
+        name: `高档簇（${d.highCount} 点）`,
+        type: "scatter",
+        symbolSize: 8,
+        data: high,
+        itemStyle: { color: COLOR.high, opacity: 0.85 },
+        markLine: markCentre(d.mu2, COLOR.highText, `高档簇心 ${d.mu2}`),
+      },
+    ],
+  };
+}
