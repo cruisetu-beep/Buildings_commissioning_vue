@@ -288,7 +288,6 @@ const readHint = computed(() => meta.value?.readHint?.[view.value] || "");
             <ol class="v2-causes">
               <li v-for="(c, i) in meta.causes" :key="i"><span class="n">{{ i + 1 }}</span><span>{{ c }}</span></li>
             </ol>
-            <div class="v2-caliber">{{ meta.caliber }}</div>
           </template>
           <div v-else class="v2-placeholder">
             规则 {{ result.ruleCode }} 的核查项尚未录入（rule-narrative.js）
