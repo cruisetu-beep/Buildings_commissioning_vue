@@ -430,6 +430,7 @@ export function parseSchedule(raw) {
     };
   }
 
+  const isNdr = m.algo === "NdrRatio";
   return {
     ...base,
     date: w0.dateFrom || "",
@@ -442,6 +443,27 @@ export function parseSchedule(raw) {
     /* MidnightFrac 的取数时段：23:00 至次日 04:00（手册 BA-S1 步骤 1）。
        跨零点，所以在 0–23 的时刻轴上是首尾两段。 */
     nightBands: m.algo === "MidnightFrac" ? [["00:00", "04:00"], ["23:00", "23:00"]] : [],
+
+    /* NdrRatio（BC-S1）：两个取数时段各取均值，比值即判据。与 MidnightFrac
+       不同构（两片底纹、两条时段均值线），所以走通用的 bands / marks；
+       buildScheduleOption 优先消费它们，缺失时回落到上面的 nightBands 老路。
+       时段边界按 step:"end" 的语义取闭开区间——第 i 个逐时值占据 [i, i+1]，
+       故 01:00–05:00 对应索引 1–4，与后端取数一致（已用三个窗口复核）。 */
+    pLow: m.pLow,
+    pPeak: m.pPeak,
+    ndr: m.ndr,
+    bands: isNdr
+      ? [
+          { from: "01:00", to: "05:00", label: "01:00–05:00", fill: "rgba(122,92,255,.07)", text: "#7a5cff" },
+          { from: "11:00", to: "15:00", label: "11:00–15:00", fill: "rgba(245,154,82,.10)", text: "#e08b2f" },
+        ]
+      : [],
+    marks: isNdr
+      ? [
+          { y: m.pLow, label: `深夜平均 ${m.pLow} kW`, color: "#7a5cff" },
+          { y: m.pPeak, label: `白天高峰平均 ${m.pPeak} kW`, color: "#e54e6e" },
+        ]
+      : [],
   };
 }
 
@@ -474,7 +496,18 @@ export function buildScheduleOption(d, yName = "空调用电 (kW)") {
     ];
   } else {
     const marks = [];
-    if (Number.isFinite(d.pMid))
+    /* 通用形态（NdrRatio 等）：基准线由 parseSchedule 给全，条数不固定 */
+    if (d.marks?.length) {
+      d.marks.forEach((k) => {
+        if (Number.isFinite(k.y))
+          marks.push({
+            yAxis: k.y,
+            lineStyle: { color: k.color, type: "dashed", width: 1 },
+            label: { formatter: k.label, color: k.color },
+          });
+      });
+    }
+    if (!marks.length && Number.isFinite(d.pMid))
       marks.push({
         yAxis: d.pMid,
         lineStyle: { color: "#f59a52", type: "dashed", width: 1 },
@@ -491,7 +524,16 @@ export function buildScheduleOption(d, yName = "空调用电 (kW)") {
       line(`${d.date.slice(5)} 逐时功率`, d.workday, "#2f7fff", {
         markLine: { silent: true, symbol: "none", label: { fontSize: 11, position: "insideEndTop" }, data: marks },
         /* 标出取数时段本身，让 P_mid 这个数在图上有落点 */
-        markArea: d.nightBands.length
+        markArea: d.bands?.length
+          ? {
+              silent: true,
+              label: { show: true, position: "insideTop", fontSize: 10 },
+              data: d.bands.map((b) => [
+                { xAxis: b.from, itemStyle: { color: b.fill }, label: { formatter: b.label, color: b.text } },
+                { xAxis: b.to },
+              ]),
+            }
+          : d.nightBands.length
           ? {
               silent: true,
               itemStyle: { color: "rgba(122,92,255,.07)" },

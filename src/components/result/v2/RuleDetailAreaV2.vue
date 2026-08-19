@@ -141,6 +141,20 @@ const vals = computed(() => {
     const d = schedule.value;
     /* E 类单曲线形态（BA-S1 等夜间时段规则） */
     if (d.mode === "single") {
+      /* NdrRatio（BC-S1）：两个时段均值之比，没有 pMid / pMax */
+      if (d.algo === "NdrRatio") {
+        return {
+          date: fmtDate(d.date),
+          selectionReason: d.selectionReason,
+          pLow: num(d.pLow),
+          pPeak: num(d.pPeak),
+          ndr: pct(d.ndr),
+          threshold: pct(d.threshold),
+          dayMin: num(d.dayMin),
+          dayMax: num(d.dayMax),
+          _m: m,
+        };
+      }
       return {
         date: fmtDate(d.date),
         selectionReason: d.selectionReason,
@@ -224,6 +238,7 @@ function stepPassed(key, m) {
      不在前端复刻，直接取后端结论：passed=false 即判据满足、指向触发。 */
   if (key === "residual") return m.passed === false;
   if (key === "frac") return Number(m.frac) > Number(m.threshold);
+  if (key === "ndr") return Number(m.ndr) > Number(m.threshold);
   /* B 类。要求列写的是合格条件，所以 ✓ 表示达标；
      该规则是"有一项不达标即触发"，结论由 foot 给出。 */
   if (key === "r2") return m.r2Passed === true;
@@ -268,7 +283,12 @@ function render() {
       ? buildClusterDistOption(cluster.value, yName)
       : buildClusterTimeOption(cluster.value, yName);
   } else if (schedule.value) {
-    option = buildScheduleOption(schedule.value);
+    /* BC-S1 喂的是冷冻泵 + 冷却泵（requiredNodeTypes = U2A01,U2A02），
+       不是空调系统总电耗，纵轴名不能沿用默认值 */
+    option = buildScheduleOption(
+      schedule.value,
+      schedule.value.algo === "NdrRatio" ? "冷冻泵 + 冷却泵功率 (kW)" : undefined
+    );
   } else if (regression.value) {
     option = buildRegressionOption(regression.value);
   }
