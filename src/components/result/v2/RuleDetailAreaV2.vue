@@ -139,6 +139,21 @@ const vals = computed(() => {
 
   if (schedule.value) {
     const d = schedule.value;
+    /* E 类单曲线形态（BA-S1 等夜间时段规则） */
+    if (d.mode === "single") {
+      return {
+        date: fmtDate(d.date),
+        selectionReason: d.selectionReason,
+        pMid: num(d.pMid),
+        pMax: num(d.pMax),
+        frac: pct(d.frac),
+        threshold: pct(d.threshold),
+        dayMin: num(d.dayMin),
+        dayMax: num(d.dayMax),
+        _m: m,
+      };
+    }
+    /* E 类双曲线形态（D05 等日对规则） */
     return {
       wdDate: fmtDate(d.wdDate),
       holDate: fmtDate(d.holDate),
@@ -208,6 +223,7 @@ function stepPassed(key, m) {
   /* 残留率的比较方向按业态分组而不同（间歇型过高触发、客流型偏低触发），
      不在前端复刻，直接取后端结论：passed=false 即判据满足、指向触发。 */
   if (key === "residual") return m.passed === false;
+  if (key === "frac") return Number(m.frac) > Number(m.threshold);
   /* B 类。要求列写的是合格条件，所以 ✓ 表示达标；
      该规则是"有一项不达标即触发"，结论由 foot 给出。 */
   if (key === "r2") return m.r2Passed === true;
@@ -385,9 +401,9 @@ const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
               </table>
             </div>
 
-            <!-- E 类：工作日 / 节假日逐时对照 -->
+            <!-- E 类：逐时功率（单曲线 / 工作日对照两种形态） -->
             <div v-if="view === 'data' && schedule" class="v2-tblwrap">
-              <table class="v2-dt">
+              <table v-if="schedule.mode === 'pair'" class="v2-dt">
                 <thead>
                   <tr>
                     <th>时刻</th>
@@ -402,6 +418,18 @@ const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
                     <td class="mono">{{ schedule.workday[i] }}</td>
                     <td class="mono">{{ schedule.holiday[i] }}</td>
                     <td class="mono">{{ (schedule.workday[i] - schedule.holiday[i]).toFixed(2) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <table v-else class="v2-dt">
+                <thead>
+                  <tr><th>时刻</th><th>{{ schedule.date.slice(5) }} 逐时功率 (kW)</th><th>是否在取数时段</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(h, i) in schedule.hours" :key="h">
+                    <td class="mono">{{ h }}</td>
+                    <td class="mono">{{ schedule.workday[i] }}</td>
+                    <td :class="i <= 4 || i === 23 ? 'chip-high' : ''">{{ i <= 4 || i === 23 ? "23:00–04:00" : "—" }}</td>
                   </tr>
                 </tbody>
               </table>

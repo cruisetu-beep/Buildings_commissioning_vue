@@ -386,49 +386,74 @@ const GROUP_CN = {
 export function parseSchedule(raw) {
   if (!raw) return null;
   const wd = raw.hourlyProfiles?.workday;
+  if (!Array.isArray(wd) || !wd.length) return null;
   const hol = raw.hourlyProfiles?.holiday;
-  if (!Array.isArray(wd) || !Array.isArray(hol) || !wd.length) return null;
+  /* E 类有两种形态，靠 holiday 是否存在区分：
+       pair   工作日 / 节假日双曲线（D05 等日对规则）
+       single 单条日曲线 + 时段比值（BA-S1 等夜间时段规则） */
+  const paired = Array.isArray(hol) && hol.length === wd.length;
 
   const w0 = raw.windows?.[0] || {};
   const tm = w0.temperatureMatch || {};
   const m = raw.metrics || {};
-
   const hours = wd.map((_, i) => `${String(i).padStart(2, "0")}:00`);
-  return {
+
+  const base = {
+    mode: paired ? "pair" : "single",
     hours,
     workday: wd,
-    holiday: hol,
-    wdDate: w0.workday?.date || "",
-    holDate: w0.holiday?.date || "",
-    wdWeek: WEEK_CN[w0.workday?.label] || w0.workday?.label || "",
-    holWeek: WEEK_CN[w0.holiday?.label] || w0.holiday?.label || "",
-    wdTemp: tm.wdAvg,
-    holTemp: tm.holAvg,
-    tDelta: tm.delta,
-    tThreshold: tm.threshold,
-    residual: m.residualRate,
-    residualThreshold: m.groupThreshold,
-    passed: m.passed,
+    holiday: paired ? hol : null,
     group: GROUP_CN[raw.group] || raw.group || "",
-    /* 曲线自身的统计量。刻意不使用 metrics.eWork / eHol：
-       两者恰为曲线积分的 4 倍（后端疑似把 96 个 15 分钟读数直接求和），
-       直接显示会与图对不上。R 是比值不受影响，照用。 */
-    wdPeak: Math.max(...wd),
-    wdBase: Math.min(...wd),
-    holPeak: Math.max(...hol),
-    holBase: Math.min(...hol),
+    dayMin: Math.min(...wd),
+    dayMax: Math.max(...wd),
+  };
+
+  if (paired) {
+    return {
+      ...base,
+      wdDate: w0.workday?.date || "",
+      holDate: w0.holiday?.date || "",
+      wdWeek: WEEK_CN[w0.workday?.label] || w0.workday?.label || "",
+      holWeek: WEEK_CN[w0.holiday?.label] || w0.holiday?.label || "",
+      wdTemp: tm.wdAvg,
+      holTemp: tm.holAvg,
+      tDelta: tm.delta,
+      tThreshold: tm.threshold,
+      residual: m.residualRate,
+      residualThreshold: m.groupThreshold,
+      passed: m.passed,
+      /* 刻意不使用 metrics.eWork / eHol，见 rule-narrative.js 中 D05 的说明 */
+      wdPeak: Math.max(...wd),
+      wdBase: Math.min(...wd),
+      holPeak: Math.max(...hol),
+      holBase: Math.min(...hol),
+    };
+  }
+
+  return {
+    ...base,
+    date: w0.dateFrom || "",
+    selectionReason: w0.selectionReason || "",
+    frac: m.frac,
+    pMid: m.pMid,
+    pMax: m.pMax,
+    threshold: m.threshold,
+    algo: m.algo || "",
+    /* MidnightFrac 的取数时段：23:00 至次日 04:00（手册 BA-S1 步骤 1）。
+       跨零点，所以在 0–23 的时刻轴上是首尾两段。 */
+    nightBands: m.algo === "MidnightFrac" ? [["00:00", "04:00"], ["23:00", "23:00"]] : [],
   };
 }
 
 export function buildScheduleOption(d, yName = "空调用电 (kW)") {
-  const all = [...d.workday, ...d.holiday];
+  const all = d.mode === "pair" ? [...d.workday, ...d.holiday] : [...d.workday];
+  /* 单曲线形态要能容下 P_max 基准线——它取自更细粒度的原始读数，
+     通常高于逐时均值曲线的最高点，若不放大上界就会被裁到框外。 */
+  if (d.mode === "single" && Number.isFinite(d.pMax)) all.push(d.pMax);
   const min = Math.max(0, Math.floor(Math.min(...all) * 0.9));
   const max = Math.ceil(Math.max(...all) * 1.08);
 
-  /* hourlyProfiles 是逐时聚合值——每个数代表该小时的平均功率，不是瞬时采样。
-     用阶梯图（每小时一个平台）如实表达；平滑曲线会在两个小时之间插出数据里
-     没有的弧度，还会让峰值超过真实最大值。 */
-  const line = (name, data, color) => ({
+  const line = (name, data, color, extra = {}) => ({
     name,
     type: "line",
     step: "end",
@@ -438,7 +463,45 @@ export function buildScheduleOption(d, yName = "空调用电 (kW)") {
     itemStyle: { color },
     areaStyle: { color, opacity: 0.12 },
     emphasis: { focus: "series" },
+    ...extra,
   });
+
+  let series;
+  if (d.mode === "pair") {
+    series = [
+      line(`工作日 ${d.wdDate.slice(5)} ${d.wdWeek}`, d.workday, "#2f7fff"),
+      line(`节假日 ${d.holDate.slice(5)} ${d.holWeek}`, d.holiday, "#f59a52"),
+    ];
+  } else {
+    const marks = [];
+    if (Number.isFinite(d.pMid))
+      marks.push({
+        yAxis: d.pMid,
+        lineStyle: { color: "#f59a52", type: "dashed", width: 1 },
+        label: { formatter: `夜间平均 ${d.pMid} kW`, color: "#e08b2f" },
+      });
+    if (Number.isFinite(d.pMax))
+      marks.push({
+        yAxis: d.pMax,
+        lineStyle: { color: "#e54e6e", type: "dashed", width: 1 },
+        label: { formatter: `系统最大 ${d.pMax} kW`, color: "#e54e6e" },
+      });
+
+    series = [
+      line(`${d.date.slice(5)} 逐时功率`, d.workday, "#2f7fff", {
+        markLine: { silent: true, symbol: "none", label: { fontSize: 11, position: "insideEndTop" }, data: marks },
+        /* 标出取数时段本身，让 P_mid 这个数在图上有落点 */
+        markArea: d.nightBands.length
+          ? {
+              silent: true,
+              itemStyle: { color: "rgba(122,92,255,.07)" },
+              label: { show: true, position: "insideTop", color: "#7a5cff", fontSize: 10, formatter: "23:00–04:00" },
+              data: d.nightBands.map(([a, b]) => [{ xAxis: a }, { xAxis: b }]),
+            }
+          : undefined,
+      }),
+    ];
+  }
 
   return {
     grid: { left: 66, right: 26, top: 46, bottom: 52 },
@@ -454,7 +517,7 @@ export function buildScheduleOption(d, yName = "空调用电 (kW)") {
       type: "category",
       data: d.hours,
       boundaryGap: false,
-      name: "时刻",
+      name: d.mode === "pair" ? "时刻" : "时刻（当日 00:00–23:00）",
       nameLocation: "middle",
       nameGap: 34,
       nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
@@ -476,9 +539,6 @@ export function buildScheduleOption(d, yName = "空调用电 (kW)") {
       axisLabel: { color: COLOR.axis, fontSize: 11 },
       splitLine: { lineStyle: { color: COLOR.split } },
     },
-    series: [
-      line(`工作日 ${d.wdDate.slice(5)} ${d.wdWeek}`, d.workday, "#2f7fff"),
-      line(`节假日 ${d.holDate.slice(5)} ${d.holWeek}`, d.holiday, "#f59a52"),
-    ],
+    series,
   };
 }
