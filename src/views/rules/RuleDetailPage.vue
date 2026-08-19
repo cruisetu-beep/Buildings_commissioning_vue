@@ -14,7 +14,7 @@ import FormField from "../../components/common/FormField.vue";
 import ThresholdPreview from "../../components/rules/ThresholdPreview.vue";
 import ManualCollapse from "../../components/rules/ManualCollapse.vue";
 import SavedBanner from "../../components/rules/SavedBanner.vue";
-import { fetchRuleDetail, updateRule, getManual, THRESHOLD_MAP } from "../../data/rules-api.js";
+import { fetchRuleDetail, updateRule } from "../../data/rules-api.js";
 
 import "../../assets/styles/rule-detail.css";
 
@@ -54,18 +54,16 @@ const showToast = (msg, type = "info") => {
 };
 
 function initForm() {
-  console.log("Debug initForm: category =", rule.value.category);
-  console.log("Debug initForm: rule.value =", JSON.stringify(rule.value));
   initial.value = {
     name: rule.value.name,
     priority: rule.value.priority,
     minValid: rule.value.minValid,
     minPass: rule.value.minPass,
     isEnabled: rule.value.isEnabled,
-    judgment: getManual(rule.value).judgment,
-    thresholdDesc: THRESHOLD_MAP[rule.value.ruleCode]
-      ? `${THRESHOLD_MAP[rule.value.ruleCode].unit}(按 12 业态差异化)`
-      : rule.value.brief,
+    // 绑定判定标准描述 (直接绑定后端 judgment 字段)
+    judgment: rule.value.judgment || "",
+    // 绑定阈值描述 (直接绑定后端 brief 字段)
+    thresholdDesc: rule.value.brief || "",
     category: rule.value.category,
     nodeReq: rule.value.nodeReq || "",
     nodePriority: rule.value.nodePriority || ""
@@ -85,12 +83,19 @@ const onSave = async () => {
     savedFields.value = changedKeys.value;
     
     // 1. 调用后端接口更新，将现有规则的完整属性和表单修改合并发送，避免缺少必填字段导致 400 错误
-    // 修正：将 thresholdDesc 映射回 brief 发给后端
-    const payload = { ...rule.value, ...form, brief: form.thresholdDesc };
+    const payload = { 
+      ...rule.value, 
+      ...form, 
+      brief: form.thresholdDesc 
+    };
     await updateRule(rule.value.cxRuleId, payload);
     
-    // 2. 替换 rule 的整个引用，迫使 Vue 深度更新顶部及所有依赖 rule 属性的 UI
-    rule.value = { ...rule.value, ...form, brief: form.thresholdDesc };
+    // 2. 替换 rule 的整个引用，迫使 Vue 深度更新顶部及所有依赖 rule 属性 of UI
+    rule.value = { 
+      ...rule.value, 
+      ...form, 
+      brief: form.thresholdDesc 
+    };
     
     // 3. 重新调用初始加载表单方法，重置 initial 基线并对齐 form
     initForm();
@@ -324,7 +329,7 @@ const onJumpToMatrix = () => {
     </div>
 
     <!-- ─── D 系业态阈值预览 ─── -->
-    <div v-if="rule.series === 'D' && THRESHOLD_MAP[rule.ruleCode]" class="card glow detail-card">
+    <div v-if="rule.series === 'D'" class="card glow detail-card">
       <div class="detail-section-head">
         <div class="section-title-row">
           <Icon name="sliders" :size="15" stroke="var(--brand)" />

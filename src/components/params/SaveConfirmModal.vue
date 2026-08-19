@@ -2,10 +2,9 @@
 /* ═══════════════════════════════════════════════════════════════
    SaveConfirmModal · 保存确认对话框
    ═══════════════════════════════════════════════════════════════ */
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted } from "vue";
 import Icon from "../icons/Icon.vue";
 import { fetchFuncDict } from "../../data/buildings-api.js";
-import { THRESHOLD_RULE_META, AFFECTED_COUNT } from "../../data/threshold-matrix-data.js";
 
 const props = defineProps({
   changes: { type: Array, required: true },
@@ -14,22 +13,17 @@ const emit = defineEmits(["confirm", "cancel"]);
 
 const funcMap = ref({});
 
+const getSuffix = (rule) => {
+  if (rule === "D02" || rule === "D03" || rule === "D04") return "%";
+  return "";
+};
+
 onMounted(async () => {
   try {
     funcMap.value = await fetchFuncDict();
   } catch (err) {
     console.error("Failed to load func dict in SaveConfirmModal:", err);
   }
-});
-
-// 简化统计:直接累加(实际应去重),与原型保持一致
-const totalAffected = computed(() => {
-  const set = new Set();
-  props.changes.forEach((c) => {
-    const n = AFFECTED_COUNT[c.rule]?.[c.func] || 0;
-    for (let i = 0; i < n; i++) set.add(`${c.rule}-${c.func}-${i}`);
-  });
-  return set.size;
 });
 </script>
 
@@ -49,9 +43,6 @@ const totalAffected = computed(() => {
       </div>
 
       <div class="modal-body">
-        <div class="changes-summary mono">
-          共影响约 <b>{{ totalAffected }}</b> 栋建筑的判定
-        </div>
         <div class="changes-list">
           <div v-for="(c, i) in changes" :key="i" class="change-row">
             <div class="change-row-left">
@@ -62,12 +53,9 @@ const totalAffected = computed(() => {
               </span>
             </div>
             <div class="change-row-mid">
-              <span class="chg-old mono">{{ c.oldValue }}{{ THRESHOLD_RULE_META[c.rule].suffix }}</span>
+              <span class="chg-old mono">{{ c.oldValue }}{{ getSuffix(c.rule) }}</span>
               <Icon name="chevron-r" :size="12" stroke="var(--text-3)" />
-              <span class="chg-new mono">{{ c.newValue }}{{ THRESHOLD_RULE_META[c.rule].suffix }}</span>
-            </div>
-            <div class="change-row-right mono">
-              ~{{ AFFECTED_COUNT[c.rule]?.[c.func] || 0 }} 栋
+              <span class="chg-new mono">{{ c.newValue }}{{ getSuffix(c.rule) }}</span>
             </div>
           </div>
         </div>

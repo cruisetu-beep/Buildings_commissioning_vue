@@ -5,8 +5,7 @@
    ═══════════════════════════════════════════════════════════════ */
 import { ref } from "vue";
 import { fetchFuncDict } from "./buildings-api.js";
-import { RULE_MANUAL, DEFAULT_MANUAL, getManual } from "./rule-manual.js";
-import { THRESHOLD_MAP } from "./threshold-map.js";
+import { fetchThresholds } from "./threshold-matrix-api.js";
 
 const API_PREFIX = '/api/CxRule';
 
@@ -163,11 +162,6 @@ export async function fetchFuncMap() {
   return await fetchFuncDict();
 }
 
-/** 规则手册原文(按规则分类编码取,取不到则返回默认模板) */
-export function fetchRuleManual(rule) {
-  return Promise.resolve(getManual(rule));
-}
-
 /** 获取所有业态的差异化阈值矩阵列表 */
 export async function fetchThresholdList() {
   try {
@@ -190,57 +184,51 @@ export async function updateThresholdList(list) {
 
 /** D 系规则的业态差异化阈值预览数据（改由后端动态拉取） */
 export async function fetchThresholdMap() {
-  const list = await fetchThresholdList();
-  if (!list || list.length === 0) {
-    return THRESHOLD_MAP;
+  try {
+    const thresholds = await fetchThresholds();
+    const map = {};
+    
+    Object.keys(thresholds || {}).forEach(ruleCode => {
+      const isPercent = ruleCode === "D02" || ruleCode === "D03" || ruleCode === "D04";
+      const isR2 = ruleCode === "D01";
+      
+      let unit = "";
+      if (ruleCode === "D01") unit = "R² ≥";
+      else if (ruleCode === "D02") unit = "降幅 ≥";
+      else if (ruleCode === "D03") unit = "夜/日 ≤";
+      else if (ruleCode === "D04") unit = "过渡/盛夏 ≤";
+      else if (ruleCode === "D05") unit = "分组策略";
+
+      let notes = {};
+      if (ruleCode === "D01") notes = { BC: "24h连续", BE: "24h连续" };
+      else if (ruleCode === "D03") notes = { BC: "高", BE: "高" };
+      else if (ruleCode === "D04") notes = { BB: "客流高", BE: "高" };
+      
+      map[ruleCode] = {
+        unit,
+        values: {},
+        notes
+      };
+      
+      Object.keys(thresholds[ruleCode] || {}).forEach(func => {
+        const val = thresholds[ruleCode][func];
+        if (val === null || val === undefined) {
+          map[ruleCode].values[func] = "";
+        } else if (isPercent) {
+          map[ruleCode].values[func] = `${Math.round(parseFloat(val) * 100)}%`;
+        } else if (isR2) {
+          map[ruleCode].values[func] = parseFloat(val).toFixed(2);
+        } else {
+          map[ruleCode].values[func] = val;
+        }
+      });
+    });
+    
+    return map;
+  } catch (error) {
+    console.error("fetchThresholdMap failed:", error);
+    return {};
   }
-  const map = {
-    "D01": {
-      unit: "R² ≥",
-      values: {},
-      notes: { BC: "24h连续", BE: "24h连续" }
-    },
-    "D02": {
-      unit: "降幅 ≥",
-      values: {},
-      notes: {}
-    },
-    "D03": {
-      unit: "夜/日 ≤",
-      values: {},
-      notes: { BC: "高", BE: "高" }
-    },
-    "D04": {
-      unit: "过渡/盛夏 ≤",
-      values: {},
-      notes: { BB: "客流高", BE: "高" }
-    },
-    "D05": {
-      unit: "分组策略",
-      values: {},
-      notes: {}
-    }
-  };
-
-  list.forEach(item => {
-    const f = item.buildFunc;
-    if (!f) return;
-    map["D01"].values[f] = item.r2Threshold !== null && item.r2Threshold !== undefined 
-      ? item.r2Threshold.toFixed(2) 
-      : "";
-    map["D02"].values[f] = item.coolingMinDrop !== null && item.coolingMinDrop !== undefined 
-      ? `${Math.round(item.coolingMinDrop * 100)}%` 
-      : "";
-    map["D03"].values[f] = item.nightMaxRatio !== null && item.nightMaxRatio !== undefined 
-      ? `${Math.round(item.nightMaxRatio * 100)}%` 
-      : "";
-    map["D04"].values[f] = item.transMaxRatio !== null && item.transMaxRatio !== undefined 
-      ? `${Math.round(item.transMaxRatio * 100)}%` 
-      : "";
-    map["D05"].values[f] = item.holidayDropGroup || "";
-  });
-
-  return map;
 }
 
 export const ruleNameMapRef = ref({});
@@ -269,6 +257,3 @@ export function initRuleMetaMap() {
   });
   return initPromise;
 }
-
-// 同步版本支持详情页初始值（从本地获取兜底映射）
-export { RULE_MANUAL, DEFAULT_MANUAL, getManual, THRESHOLD_MAP };

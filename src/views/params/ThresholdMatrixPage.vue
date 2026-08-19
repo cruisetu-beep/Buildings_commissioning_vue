@@ -9,13 +9,11 @@ import MatrixCell from "../../components/params/MatrixCell.vue";
 import SaveConfirmModal from "../../components/params/SaveConfirmModal.vue";
 import ResetDefaultModal from "../../components/params/ResetDefaultModal.vue";
 import { fetchFuncDict } from "../../data/buildings-api.js";
+import { fetchRules } from "../../data/rules-api.js";
 import {
   fetchThresholds,
   saveThresholds,
   resetThresholdsToDefault,
-  THRESHOLD_RULE_META,
-  FUNC_LIST,
-  RULE_LIST,
 } from "../../data/threshold-matrix-api.js";
 
 import "../../assets/styles/threshold-matrix.css";
@@ -24,6 +22,52 @@ const editMode = ref(false);
 const thresholds = ref({});
 const baseline = ref({}); // 当前"已保存"的基准值(用于判定 changed / 撤销)
 const funcMap = ref({});
+const rulesList = ref([]); // 后端配置的真实规则列表
+
+// 动态提取判定规则行列表
+const RULE_LIST = computed(() => {
+  const keys = Object.keys(thresholds.value || {});
+  return keys.filter(k => k.startsWith("D"));
+});
+
+// 动态读取业态分类列列表
+const FUNC_LIST = computed(() => {
+  return Object.keys(funcMap.value || {});
+});
+
+// 动态元数据规则自适应转换器，可完美兼容数据库新增的无数条规则
+const getRuleMeta = (rule) => {
+  const foundRule = rulesList.value.find(r => r.ruleCode === rule);
+  const ruleName = foundRule ? foundRule.ruleName : rule;
+  const judgment = foundRule ? foundRule.judgmentStandard : "";
+
+  let type = "number";
+  let options = [];
+  let suffix = "";
+
+  if (rule === "D02" || rule === "D03" || rule === "D04") {
+    suffix = "%";
+  } else if (rule === "D05") {
+    type = "select";
+    options = ["间歇运营", "客流上涨", "24h连续", "活动驱动", "寒暑假", "不参与"];
+  }
+
+  return {
+    name: ruleName,
+    short: ruleName.substring(0, 5),
+    unit: suffix === "%" ? "%" : (rule === "D05" ? "策略" : ""),
+    suffix,
+    type,
+    min: -999999,
+    max: 999999,
+    step: "any",
+    direction: "",
+    desc: judgment || ruleName,
+    color: "var(--text-0)",
+    options,
+  };
+};
+
 const loading = ref(true);
 
 const dRuleCount = computed(() => {
@@ -42,6 +86,7 @@ onMounted(async () => {
     thresholds.value = data;
     baseline.value = JSON.parse(JSON.stringify(data));
     funcMap.value = await fetchFuncDict();
+    rulesList.value = await fetchRules();
   } catch (err) {
     console.error("Failed to load initial thresholds & func dict:", err);
   } finally {
@@ -67,8 +112,8 @@ onUnmounted(() => {
 // 计算所有修改项
 const changes = computed(() => {
   const arr = [];
-  for (const rule of RULE_LIST) {
-    for (const func of FUNC_LIST) {
+  for (const rule of RULE_LIST.value) {
+    for (const func of FUNC_LIST.value) {
       if (thresholds.value[rule]?.[func] !== baseline.value[rule]?.[func]) {
         arr.push({
           rule,
@@ -84,20 +129,18 @@ const changes = computed(() => {
 
 const isDirty = computed(() => changes.value.length > 0);
 
-// 校验:数值型是否在范围内
+// 校验:数值型是否合法
 const isCellValid = (rule, func) => {
-  const meta = THRESHOLD_RULE_META[rule];
+  const meta = getRuleMeta(rule);
   const v = thresholds.value[rule]?.[func];
   if (meta.type === "select") return meta.options.includes(v);
   if (v === "" || v == null) return false;
   const num = parseFloat(v);
-  if (isNaN(num)) return false;
-  if (num < meta.min || num > meta.max) return false;
-  return true;
+  return !isNaN(num);
 };
 
 const hasInvalid = computed(() => {
-  for (const r of RULE_LIST) for (const f of FUNC_LIST) if (!isCellValid(r, f)) return true;
+  for (const r of RULE_LIST.value) for (const f of FUNC_LIST.value) if (!isCellValid(r, f)) return true;
   return false;
 });
 
@@ -250,10 +293,10 @@ const onJumpToMatrix = () => {
               <th class="th-func"><span class="th-label">业态</span></th>
               <th v-for="rule in RULE_LIST" :key="rule" class="th-rule">
                 <div class="th-rule-code mono">{{ rule }}</div>
-                <div class="th-rule-name">{{ THRESHOLD_RULE_META[rule].short }}</div>
+                <div class="th-rule-name">{{ getRuleMeta(rule).short }}</div>
                 <div class="th-rule-dir">
-                  <span v-if="THRESHOLD_RULE_META[rule].direction" class="th-dir mono">{{ THRESHOLD_RULE_META[rule].direction }}</span>
-                  <span class="th-desc">{{ THRESHOLD_RULE_META[rule].desc }}</span>
+                  <span v-if="getRuleMeta(rule).direction" class="th-dir mono">{{ getRuleMeta(rule).direction }}</span>
+                  <span class="th-desc">{{ getRuleMeta(rule).desc }}</span>
                 </div>
               </th>
             </tr>
@@ -273,7 +316,7 @@ const onJumpToMatrix = () => {
                   :value="thresholds[rule][func]"
                   :original="baseline[rule][func]"
                   :editable="editMode"
-                  :meta="THRESHOLD_RULE_META[rule]"
+                  :meta="getRuleMeta(rule)"
                   :valid="isCellValid(rule, func)"
                   @change="(v) => setCell(rule, func, v)"
                 />

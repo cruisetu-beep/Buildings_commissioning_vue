@@ -4,7 +4,6 @@
    ═══════════════════════════════════════════════════════════════ */
 import { computed } from "vue";
 import Icon from "../icons/Icon.vue";
-import { AFFECTED_COUNT } from "../../data/threshold-matrix-data.js";
 const props = defineProps({
   rule: { type: String, required: true },
   func: { type: String, required: true },
@@ -18,9 +17,8 @@ const props = defineProps({
 const emit = defineEmits(["change"]);
 
 const isChanged = computed(() => props.value !== props.original);
-const affected = computed(() => AFFECTED_COUNT[props.rule]?.[props.func] || 0);
 const cellColor = computed(() => props.meta.color);
-const title = computed(() => `${props.rule} · ${props.funcName} · 当前影响 ${affected.value} 栋建筑的判定`);
+const title = computed(() => `${props.rule} · ${props.funcName}`);
 
 const onInputChange = (e) => emit("change", e.target.value);
 </script>
@@ -56,9 +54,6 @@ const onInputChange = (e) => emit("change", e.target.value);
         {{ value }}{{ meta.suffix }}
       </span>
     </div>
-
-    <!-- 影响建筑数徽章(悬停显示,固定右上角) -->
-    <span v-if="affected > 0" class="m-cell-affect mono">{{ affected }}</span>
 
     <!-- 修改标记 -->
     <span v-if="isChanged" class="m-cell-change-mark" :title="`原值:${original}`" />

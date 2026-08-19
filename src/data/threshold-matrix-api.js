@@ -92,4 +92,4 @@ export async function resetThresholdsToDefault() {
   }
 }
 
-export { THRESHOLD_RULE_META, AFFECTED_COUNT, FUNC_LIST, RULE_LIST } from "./threshold-matrix-data.js";
+
