@@ -33,9 +33,7 @@ const ruleDetailCode = ref(null);
 
 onMounted(async () => {
   await initRuleMetaMap();
-  const data = await fetchBuildingById(route.params.id, 2025, {
-    allRules: route.query.allrules != null,
-  });
+  const data = await fetchBuildingById(route.params.id, 2025);
   if (data) {
     building.value = data.building;
     results.value = data.results;
