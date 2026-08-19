@@ -11,7 +11,7 @@ import { ruleNameMapRef, initRuleMetaMap } from "../../data/rules-api.js";
 const props = defineProps({
   building: { type: Object, required: true },
 });
-defineEmits(["click"]);
+defineEmits(["click", "open-v2"]);
 
 onMounted(() => {
   initRuleMetaMap();
@@ -118,12 +118,15 @@ function ruleClass(code) {
 
     <div class="verdict-row">
       <span class="verdict-lbl">判定结果</span>
-      <span class="verdict" :style="{ color: verdictColor }">
-        <span
-          class="verdict-dot"
-          :style="{ background: verdictColor, boxShadow: `0 0 0 3px ${verdictColor}1f` }"
-        />
-        {{ building.category }}
+      <span class="verdict-right">
+        <span class="verdict" :style="{ color: verdictColor }">
+          <span
+            class="verdict-dot"
+            :style="{ background: verdictColor, boxShadow: `0 0 0 3px ${verdictColor}1f` }"
+          />
+          {{ building.category }}
+        </span>
+        <button class="v2-entry" @click.stop="$emit('open-v2')">新版</button>
       </span>
     </div>
   </div>
@@ -194,6 +197,15 @@ function ruleClass(code) {
 .verdict-lbl { font-size: 12px; color: #94a3b8; }
 .verdict { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
 .verdict-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+
+/* 新版详情页入口(临时:v2 页面验证期间使用,验证结束后可整块移除) */
+.verdict-right { display: flex; align-items: center; gap: 10px; }
+.v2-entry {
+  font-size: 11px; color: #64748b; background: #f8fafc;
+  border: 1px solid #e2e8f0; border-radius: 5px; padding: 2px 8px;
+  cursor: pointer; font-family: inherit; transition: color 0.15s, border-color 0.15s;
+}
+.v2-entry:hover { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
 
 /* 等宽字体统一走全局 .mono(已在 shared.css 里定义为 JetBrains Mono) */
 </style>
