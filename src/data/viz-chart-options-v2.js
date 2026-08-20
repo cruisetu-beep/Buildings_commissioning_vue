@@ -428,9 +428,11 @@ export function parseSchedule(raw) {
       wdWeek: WEEK_CN[w0.workday?.label] || w0.workday?.label || "",
       holWeek: WEEK_CN[w0.holiday?.label] || w0.holiday?.label || "",
       selectionReason: w0.selectionReason || "",
-      /* AA-S2 三个窗口选到的都是周末（01-04 六 / 01-05 日 / 01-11 六），
-         不是法定节假日，故用中性标签；D05 保持「节假日」 */
-      holName: isDpr ? "假日" : "节假日",
+      /* 假日曲线的标签取 selectionReason 的非数字前缀，用后端自己的措辞：
+         AA-S2 写「假日01-04/工作日01-03」、BA-S2 写「周末01-04/工作日01-03」，
+         两条同为 DayPairResidual 却用词不同，按 algo 硬编码会写错一条。
+         D05 无此字段，回落到「节假日」（其规则本身判的就是法定节假日）。 */
+      holName: (isDpr && String(w0.selectionReason || "").match(/^([^\d]+)/)?.[1]) || "节假日",
       wdTemp: tm.wdAvg,
       holTemp: tm.holAvg,
       tDelta: tm.delta,

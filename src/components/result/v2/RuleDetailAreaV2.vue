@@ -184,6 +184,8 @@ const vals = computed(() => {
         wdDate: fmtDate(d.wdDate),
         holDate: fmtDate(d.holDate),
         selectionReason: d.selectionReason,
+        /* 「假日」/「周末」取自 selectionReason，两条规则用词不同 */
+        holName: d.holName,
         residual: pct(d.residual),
         residualThreshold: pct(d.residualThreshold),
         /* num() 会丢尾零（43.03 → 43），同一句里与 37.3 对不齐，改定点一位 */
@@ -266,9 +268,14 @@ const verdictText = computed(() => {
   const tpl = triggered.value ? meta.value.narrative.triggered : meta.value.narrative.normal;
   return fillTemplate(tpl, vals.value);
 });
-const verdictTitle = computed(() =>
-  meta.value ? (triggered.value ? meta.value.title.triggered : meta.value.title.normal) : ""
-);
+/* title 与 readHint 原本不走 fillTemplate，AA-S2/BA-S2 需要 {holName}
+   （「假日」/「周末」取自后端 selectionReason）。既有五条规则的这两个字段
+   均无占位符，改动对它们零影响。 */
+const verdictTitle = computed(() => {
+  if (!meta.value) return "";
+  const tpl = triggered.value ? meta.value.title.triggered : meta.value.title.normal;
+  return vals.value ? fillTemplate(tpl, vals.value) : tpl;
+});
 
 /* ─── 判定依据 ─── */
 function stepPassed(key, m) {
@@ -369,7 +376,10 @@ onBeforeUnmount(() => {
    而某一类的解析结果在另一类下恒为 null，只盯其中一个会漏掉切换。 */
 watch([rawJson, view], () => nextTick(render));
 
-const readHint = computed(() => meta.value?.readHint?.[view.value] || "");
+const readHint = computed(() => {
+  const tpl = meta.value?.readHint?.[view.value] || "";
+  return vals.value ? fillTemplate(tpl, vals.value) : tpl;
+});
 /* 建议核查。两种写法：
    - 字符串数组：该规则只有一种故障模式，恒显示
    - 分组数组：仅显示 metrics[whenFalse] === false 的那些组，

@@ -410,26 +410,26 @@ const AA_S2 = {
   narrative: {
     triggered:
       "工作日（{wdDate}）冷冻泵、冷却泵与全空气机组的逐时功率在 " +
-      "{wdBase} – {wdPeak} kW 之间，假日（{holDate}）为 {holBase} – {holPeak} kW。" +
-      "假日全天电耗占工作日的 <b>{residual}</b>。",
+      "{wdBase} – {wdPeak} kW 之间，{holName}（{holDate}）为 {holBase} – {holPeak} kW。" +
+      "{holName}全天电耗占工作日的 <b>{residual}</b>。",
     normal:
       "工作日（{wdDate}）冷冻泵、冷却泵与全空气机组的逐时功率在 " +
-      "{wdBase} – {wdPeak} kW 之间，假日（{holDate}）为 {holBase} – {holPeak} kW。" +
-      "假日全天电耗占工作日的 <b>{residual}</b>，未超过 {residualThreshold} 的门槛。",
+      "{wdBase} – {wdPeak} kW 之间，{holName}（{holDate}）为 {holBase} – {holPeak} kW。" +
+      "{holName}全天电耗占工作日的 <b>{residual}</b>，未超过 {residualThreshold} 的门槛。",
   },
-  title: { triggered: "假日电耗未退到应有水平", normal: "假日电耗已明显退避" },
+  title: { triggered: "{holName}电耗未退到应有水平", normal: "{holName}电耗已明显退避" },
   steps: [
     {
       kind: "stated",
       what: "取数据",
-      sub: "一对工作日与假日（{selectionReason}）各 24 小时的逐时功率",
-      val: "工作日 {wdBase} – {wdPeak} kW · 假日 {holBase} – {holPeak} kW",
+      sub: "一对工作日与{holName}（{selectionReason}）各 24 小时的逐时功率",
+      val: "工作日 {wdBase} – {wdPeak} kW · {holName} {holBase} – {holPeak} kW",
       req: "—",
     },
     {
       kind: "test",
       what: "空载能耗残留率 R",
-      sub: "假日全天电耗占工作日全天电耗的比例",
+      sub: "{holName}全天电耗占工作日全天电耗的比例",
       val: "{residual}",
       req: "> {residualThreshold}",
       key: "residual",
@@ -442,7 +442,58 @@ const AA_S2 = {
   /* 唯一一条，出处是后端 judgmentStandard，不是手册。其余留空走组件兜底。 */
   causes: ["节假日未执行退避策略（后端判定口径，手册暂无该规则正文）"],
   readHint: {
-    day: "两条曲线是同一栋楼在工作日与假日的 24 小时逐时功率，曲线下的面积就是各自的全天电耗，两块面积之比即残留率 R。",
+    day: "两条曲线是同一栋楼在工作日与{holName}的 24 小时逐时功率，曲线下的面积就是各自的全天电耗，两块面积之比即残留率 R。",
+  },
+};
+
+/* BA-S2（CR0035）。与 AA-S2 同算法（DayPairResidual），阈值不同（0.7 vs 0.3），
+   同样**手册两版都没有正文**，causes 只列后端 judgmentStandard 一条。
+   照约定「照抄最接近的那条」整份写开，不与 AA_S2 共用对象——
+   这是数据文件，后续多由非作者直接改字，共用会造成改一处动两条。
+
+   数据源措辞：requiredNodeTypes = U2A01,U2A02,U2A00，但 modelNodes 的
+   parentNodeId 表明 U2A00 冷热站是 U2A01/U2A02 的**父节点**，三者相加会把
+   两个泵算两遍。故按层级写作「冷热站（含冷冻泵、冷却泵）」，只复述
+   payload 自己的父子关系，不断言求和口径。已挂问题清单。
+   ⚠ 同一问题牵连 C03：C03 把 U2A00 当「冷水主机」做分母，若它实为含泵的
+   冷热站总表，那 R 算的是「部分 ÷ 整体」，需后端确认。 */
+const BA_S2 = {
+  narrative: {
+    triggered:
+      "工作日（{wdDate}）冷热站（含冷冻泵、冷却泵）的逐时功率在 " +
+      "{wdBase} – {wdPeak} kW 之间，{holName}（{holDate}）为 {holBase} – {holPeak} kW。" +
+      "{holName}全天电耗占工作日的 <b>{residual}</b>。",
+    normal:
+      "工作日（{wdDate}）冷热站（含冷冻泵、冷却泵）的逐时功率在 " +
+      "{wdBase} – {wdPeak} kW 之间，{holName}（{holDate}）为 {holBase} – {holPeak} kW。" +
+      "{holName}全天电耗占工作日的 <b>{residual}</b>，未超过 {residualThreshold} 的门槛。",
+  },
+  title: { triggered: "{holName}冷水系统未卸载", normal: "{holName}冷水系统已卸载" },
+  steps: [
+    {
+      kind: "stated",
+      what: "取数据",
+      sub: "一对工作日与{holName}（{selectionReason}）各 24 小时的逐时功率",
+      val: "工作日 {wdBase} – {wdPeak} kW · {holName} {holBase} – {holPeak} kW",
+      req: "—",
+    },
+    {
+      kind: "test",
+      what: "空载能耗残留率 R",
+      sub: "{holName}全天电耗占工作日全天电耗的比例",
+      val: "{residual}",
+      req: "> {residualThreshold}",
+      key: "residual",
+    },
+  ],
+  foot: {
+    triggered: "判据满足 → 判定为 <b>目标调适</b>",
+    normal: "判据未满足 → 判定为 <b>正常</b>",
+  },
+  /* 唯一一条，出处是后端 judgmentStandard，不是手册。其余留空走组件兜底。 */
+  causes: ["周末无人时段冷水系统未卸载（后端判定口径，手册暂无该规则正文）"],
+  readHint: {
+    day: "两条曲线是同一栋楼在工作日与{holName}的 24 小时逐时功率，曲线下的面积就是各自的全天电耗，两块面积之比即残留率 R。",
   },
 };
 
@@ -462,6 +513,8 @@ const NARRATIVES = {
   CR0021: C03,
   "AA-S2": AA_S2,
   CR0032: AA_S2,
+  "BA-S2": BA_S2,
+  CR0035: BA_S2,
 };
 
 /* 后端 ruleCode 可能带前后缀或大小写差异，做一次归一化再匹配 */
