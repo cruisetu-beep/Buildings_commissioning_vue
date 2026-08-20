@@ -112,6 +112,8 @@ const meta = computed(() => getRuleNarrative(props.result?.ruleCode));
 
 const pct = (v) => (Number.isFinite(Number(v)) ? `${(Number(v) * 100).toFixed(1)}%` : "—");
 const num = (v, d = 2) => (Number.isFinite(Number(v)) ? Number(Number(v).toFixed(d)) : "—");
+/* 保留尾零的定点格式，用于同句并列的数值（num 会把 43.0 变成 43） */
+const fix1 = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : "—");
 
 function fmtDate(s) {
   if (!s) return "—";
@@ -175,6 +177,23 @@ const vals = computed(() => {
       };
     }
     /* E 类双曲线形态（D05 等日对规则） */
+    if (d.algo === "DayPairResidual") {
+      /* AA-S2：无温度匹配、无 weekday 标签、无 passed。
+         eWork/eOther 实测为逐时积分的 4.0000 倍，不取用。 */
+      return {
+        wdDate: fmtDate(d.wdDate),
+        holDate: fmtDate(d.holDate),
+        selectionReason: d.selectionReason,
+        residual: pct(d.residual),
+        residualThreshold: pct(d.residualThreshold),
+        /* num() 会丢尾零（43.03 → 43），同一句里与 37.3 对不齐，改定点一位 */
+        wdPeak: fix1(d.wdPeak),
+        wdBase: fix1(d.wdBase),
+        holPeak: fix1(d.holPeak),
+        holBase: fix1(d.holBase),
+        _m: m,
+      };
+    }
     return {
       wdDate: fmtDate(d.wdDate),
       holDate: fmtDate(d.holDate),
@@ -270,6 +289,8 @@ function stepPassed(key, m) {
   /* B 类。要求列写的是合格条件，所以 ✓ 表示达标；
      该规则是"有一项不达标即触发"，结论由 foot 给出。 */
   if (key === "r2") return m.r2Passed === true;
+  /* AA-S2：payload 无 passed 字段，方向固定（R > 阈值触发），直接比较 */
+  if (key === "residual") return Number(m.residual) > Number(m.threshold);
   if (key === "slope") return m.slopePassed === true;
   /* C03：反向判据（R < 1/3 触发），且 R 可能为负。照 D05 取后端布尔，
      passed === false 即触发；不在前端比大小。 */

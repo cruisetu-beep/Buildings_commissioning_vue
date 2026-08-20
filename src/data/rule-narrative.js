@@ -396,6 +396,56 @@ const C03 = {
   },
 };
 
+/* AA-S2（CR0032）。⚠ 本条与其他规则不同：**手册两版都没有正文**。
+   v4 的 S 系只有五条标「✅ 已重构」的写了正文，AA-S2 属于「v2 原文保留」，
+   而 v2.1 第三章从头到尾只有表格，S 系一条正文都没有。
+   因此 causes 无原文可抄，按约定一不自行编写故障机理，只列后端
+   judgmentStandard 里那句判定口径。等规则负责人补正文后再填，纯增量。
+
+   数据源按 requiredNodeTypes = U2A01,U2A02,U2B01 写作「冷冻泵、冷却泵与
+   全空气机组」——resultMd 又写 U2000，与 BC-S1 同一类冲突，已挂问题清单。
+   标签用「假日」不用「法定节假日」：三个窗口选到的都是周末。
+   ✓/✕ 写触发条件、指向触发，与 C01 / BA-S1 / BC-S1 同语义。 */
+const AA_S2 = {
+  narrative: {
+    triggered:
+      "工作日（{wdDate}）冷冻泵、冷却泵与全空气机组的逐时功率在 " +
+      "{wdBase} – {wdPeak} kW 之间，假日（{holDate}）为 {holBase} – {holPeak} kW。" +
+      "假日全天电耗占工作日的 <b>{residual}</b>。",
+    normal:
+      "工作日（{wdDate}）冷冻泵、冷却泵与全空气机组的逐时功率在 " +
+      "{wdBase} – {wdPeak} kW 之间，假日（{holDate}）为 {holBase} – {holPeak} kW。" +
+      "假日全天电耗占工作日的 <b>{residual}</b>，未超过 {residualThreshold} 的门槛。",
+  },
+  title: { triggered: "假日电耗未退到应有水平", normal: "假日电耗已明显退避" },
+  steps: [
+    {
+      kind: "stated",
+      what: "取数据",
+      sub: "一对工作日与假日（{selectionReason}）各 24 小时的逐时功率",
+      val: "工作日 {wdBase} – {wdPeak} kW · 假日 {holBase} – {holPeak} kW",
+      req: "—",
+    },
+    {
+      kind: "test",
+      what: "空载能耗残留率 R",
+      sub: "假日全天电耗占工作日全天电耗的比例",
+      val: "{residual}",
+      req: "> {residualThreshold}",
+      key: "residual",
+    },
+  ],
+  foot: {
+    triggered: "判据满足 → 判定为 <b>目标调适</b>",
+    normal: "判据未满足 → 判定为 <b>正常</b>",
+  },
+  /* 唯一一条，出处是后端 judgmentStandard，不是手册。其余留空走组件兜底。 */
+  causes: ["节假日未执行退避策略（后端判定口径，手册暂无该规则正文）"],
+  readHint: {
+    day: "两条曲线是同一栋楼在工作日与假日的 24 小时逐时功率，曲线下的面积就是各自的全天电耗，两块面积之比即残留率 R。",
+  },
+};
+
 /* 已填写的规则；未填写的返回 null，页面据此隐藏叙述层但保留图表 */
 const NARRATIVES = {
   C01,
@@ -410,6 +460,8 @@ const NARRATIVES = {
   CR0038: BC_S1,
   C03,
   CR0021: C03,
+  "AA-S2": AA_S2,
+  CR0032: AA_S2,
 };
 
 /* 后端 ruleCode 可能带前后缀或大小写差异，做一次归一化再匹配 */

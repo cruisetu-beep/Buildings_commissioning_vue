@@ -409,20 +409,37 @@ export function parseSchedule(raw) {
   };
 
   if (paired) {
+    /* pair 内部有两种结构，靠 algo 区分——同一 mode 不代表同一 payload：
+         D05            windows[0].workday/holiday 对象 + temperatureMatch
+                        metrics: residualRate / groupThreshold / passed
+         DayPairResidual(AA-S2)  windows[0] 是 sWindow，只有 dateFrom/dateTo
+                        metrics: residual / threshold，且没有 passed
+       AA-S2 的日期映射是从三个窗口的 selectionReason 反推的：
+       dateFrom = 工作日、dateTo = 假日（窗口2 因假日在前而出现 from > to）。
+       后端没有显式字段，已要求补 workday/holiday 对象，补上后改回读对象。
+       曲线本身不受影响——hourlyProfiles.workday/holiday 的键是明确的，
+       且已复核 Σworkday×4 == eWork，两条线不会画反。 */
+    const isDpr = m.algo === "DayPairResidual";
     return {
       ...base,
-      wdDate: w0.workday?.date || "",
-      holDate: w0.holiday?.date || "",
+      algo: m.algo || "",
+      wdDate: isDpr ? w0.dateFrom || "" : w0.workday?.date || "",
+      holDate: isDpr ? w0.dateTo || "" : w0.holiday?.date || "",
       wdWeek: WEEK_CN[w0.workday?.label] || w0.workday?.label || "",
       holWeek: WEEK_CN[w0.holiday?.label] || w0.holiday?.label || "",
+      selectionReason: w0.selectionReason || "",
+      /* AA-S2 三个窗口选到的都是周末（01-04 六 / 01-05 日 / 01-11 六），
+         不是法定节假日，故用中性标签；D05 保持「节假日」 */
+      holName: isDpr ? "假日" : "节假日",
       wdTemp: tm.wdAvg,
       holTemp: tm.holAvg,
       tDelta: tm.delta,
       tThreshold: tm.threshold,
-      residual: m.residualRate,
-      residualThreshold: m.groupThreshold,
+      residual: isDpr ? m.residual : m.residualRate,
+      residualThreshold: isDpr ? m.threshold : m.groupThreshold,
       passed: m.passed,
-      /* 刻意不使用 metrics.eWork / eHol，见 rule-narrative.js 中 D05 的说明 */
+      /* 刻意不使用 metrics.eWork / eHol / eOther：两条规则实测均为
+         hourlyProfiles 积分的 4.0000 倍，见 rule-narrative.js 中 D05 的说明 */
       wdPeak: Math.max(...wd),
       wdBase: Math.min(...wd),
       holPeak: Math.max(...hol),
@@ -490,9 +507,13 @@ export function buildScheduleOption(d, yName = "空调用电 (kW)") {
 
   let series;
   if (d.mode === "pair") {
+    /* AA-S2 无 weekday 标签，D05 有；缺项时不留空格尾巴。
+       D05 判的就是法定节假日，标签保持「节假日」不动；
+       AA-S2 实际选窗取到的是周末，只能用中性的「假日」。 */
+    const tag = (name, date, week) => [name, String(date || "").slice(5), week].filter(Boolean).join(" ");
     series = [
-      line(`工作日 ${d.wdDate.slice(5)} ${d.wdWeek}`, d.workday, "#2f7fff"),
-      line(`节假日 ${d.holDate.slice(5)} ${d.holWeek}`, d.holiday, "#f59a52"),
+      line(tag("工作日", d.wdDate, d.wdWeek), d.workday, "#2f7fff"),
+      line(tag(d.holName || "节假日", d.holDate, d.holWeek), d.holiday, "#f59a52"),
     ];
   } else {
     const marks = [];
