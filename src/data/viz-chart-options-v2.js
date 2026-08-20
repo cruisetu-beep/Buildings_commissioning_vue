@@ -652,7 +652,9 @@ export function buildScheduleOption(d, yName = "空调用电 (kW)") {
 export function parseDayPair(raw) {
   if (!raw || raw.type !== "dayPair") return null;
   const src = raw.energyBreakdown?.series || [];
-  if (src.length < 2) return null;
+  /* C07 的 series 只有一项——后端把 U2A01+U2A05 预先合并成了一条，
+     不像 C02/C03 逐节点列出。原来的 < 2 守卫会让 C07 整条渲染不出图。 */
+  if (!src.length) return null;
 
   const m = raw.metrics || {};
   const rate = (r) => (Number(r.dayA) ? (Number(r.dayB) - Number(r.dayA)) / Number(r.dayA) : NaN);
@@ -666,7 +668,17 @@ export function parseDayPair(raw) {
 
   const base = {
     kind: "dayPair",
-    algo: m.r_pump_chiller !== undefined ? "PumpChillerRatio" : "RejectDelta",
+    /* 按 metrics 的判据字段识别，三者互斥：
+         r_pump_chiller → C03 泵/主机涨幅比
+         deltaEta       → C02 散热侧变化率，(E_A - E_B)/E_A，下降为正
+         deltaR         → C07 采暖泵变化率，(E_B - E_A)/E_A，下降为负
+       C02 与 C07 分子顺序相反，符号含义也相反，文案不能共用。 */
+    algo:
+      m.r_pump_chiller !== undefined
+        ? "PumpChillerRatio"
+        : m.deltaR !== undefined
+        ? "HeatDelta"
+        : "RejectDelta",
     dayA: raw.dayA?.date || raw.windowDays?.[0] || "",
     dayB: raw.dayB?.date || raw.windowDays?.[1] || "",
     labelA: raw.dayA?.label || "Day A",
@@ -719,11 +731,12 @@ export function parseDayPair(raw) {
     totalB: tB,
     totalRate: Number.isFinite(tA) && tA ? (tB - tA) / tA : NaN,
     deltaEta: Number(m.deltaEta),
+    deltaR: Number(m.deltaR),
   };
 }
 
 export function buildDayPairOption(d) {
-  if (d.algo === "RejectDelta") return buildRejectDeltaOption(d);
+  if (d.algo === "RejectDelta" || d.algo === "HeatDelta") return buildRejectDeltaOption(d);
   const pumpPts = [100, 100 + d.dPump * 100];
   const chillerPts = [100, 100 + d.dChiller * 100];
   const all = [...pumpPts, ...chillerPts, d.passLine].filter(Number.isFinite);
@@ -842,9 +855,10 @@ function buildRejectDeltaOption(d) {
     },
   }));
 
+  /* 只有一个分项时（C07），合计与该分项完全重合，再画一条纯属遮挡 */
   const totalName = `合计 ${d.rows.length} 项`;
   const totalPts = norm(d.totalA, d.totalB);
-  lines.push({
+  if (d.rows.length > 1) lines.push({
     name: totalName,
     type: "line",
     data: totalPts.map((v) => Number(v.toFixed(2))),

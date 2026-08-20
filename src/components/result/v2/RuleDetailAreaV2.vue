@@ -285,8 +285,9 @@ const vals = computed(() => {
   }
   if (dayPair.value) {
     const p = dayPair.value;
-    /* C02（CR0019）：散热侧合计的相对变化率，节点数不定 */
-    if (p.algo === "RejectDelta") {
+    /* C02（RejectDelta）与 C07（HeatDelta）结构相同：气象数值 + N 节点 + 合计。
+       差别只在判据字段名与符号方向，vals 共用，文案各写各的。 */
+    if (p.algo === "RejectDelta" || p.algo === "HeatDelta") {
       return {
         dayA: fmtDate(p.dayA),
         dayB: fmtDate(p.dayB),
@@ -299,8 +300,13 @@ const vals = computed(() => {
         meteoUnit: p.meteoUnit,
         totalA: num(p.totalA),
         totalB: num(p.totalB),
-        /* deltaEta 为正表示电耗下降（手册定义 (E_A - E_B)/E_A） */
+        /* C02 的 deltaEta 为正表示电耗下降（(E_A - E_B)/E_A）；
+           C07 的 deltaR 是常规带符号变化率（(E_B - E_A)/E_A），为负才是下降 */
         deltaEta: pct(p.deltaEta),
+        deltaR: pct(p.deltaR),
+        /* 手册与结论卡按「降幅不足 X」表述，这里给绝对值 */
+        thresholdAbs: pct(Math.abs(Number(p.threshold))),
+        meteoRise: fix1(Math.abs(Number(p.meteoDelta))),
         threshold: pct(p.threshold),
         nodeCount: p.rows.length,
         /* conditionPassed 挂在 meteorology 下、不在 metrics 里，
@@ -382,6 +388,8 @@ function stepPassed(key, m) {
      自己比会得出与后端相反的结论。 */
   if (key === "meteo") return m.conditionPassed === true;
   if (key === "eta") return m.passed === false;
+  /* C07：与 C02 同为后端布尔，但判据字段与符号方向不同，单列以免混淆 */
+  if (key === "dr") return m.passed === false;
   /* C06：双边判据 1.30 < R < 100，上界用于滤传感器故障。
      后端字段名 maxMeanRatio 装的是 max/min（见 parseDistribution 注释）。 */
   if (key === "ratio") {

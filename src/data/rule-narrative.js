@@ -701,6 +701,74 @@ const C06 = {
   },
 };
 
+/* C07（CR0027）。与 C02 结构相同（dayPair + 气象数值 + 合计变化率），
+   但**判据是自洽的**，与 C02 那个符号问题无关：
+     C02  Δη = (E_A − E_B)/E_A  下降为正 ⇒ 判据写 ≥ −5% 与定义矛盾
+     C07  Δr = (E_B − E_A)/E_A  下降为负 ⇒ 判据写 > −15% 正确
+   差别只在分子前后顺序。故本条可照手册措辞写「降幅不足」，不必像 C02
+   那样退到中性表述。
+
+   ⚠ 实测量级极小：采暖泵日电耗 7.20 → 7.60 kWh（日均约 0.30 kW），
+      而同一栋楼的冷热站日耗约 10242 kWh。0.4 kWh 的绝对变化已接近计量
+      噪声，Δr 的 5.6% 建立在这个基数上。同 C03 的 72.00 kWh 恒定泵读数，
+      属同一类问题，已挂问题清单。文案如实写出两个绝对值，读者自行判断。
+   ⚠ 后端把 U2A01+U2A05 预先合并为一条 series（不像 C02/C03 逐节点列出），
+      故图上只有一条线，无分项可看。
+   ✓/✕ 两条判据均取后端布尔（conditionPassed / passed）。 */
+const C07 = {
+  narrative: {
+    triggered:
+      "{dayA} → {dayB}，室外日均干球温度由 <b>{meteoA}{meteoUnit}</b> 升至 <b>{meteoB}{meteoUnit}</b>" +
+      "（升 {meteoRise}{meteoUnit}）。同期采暖泵日总电耗由 <b>{totalA} kWh</b> 变为 " +
+      "<b>{totalB} kWh</b>，相对变化率 Δr = <b>{deltaR}</b>（Δr 为负表示电耗下降）。",
+    normal:
+      "{dayA} → {dayB}，室外日均干球温度由 <b>{meteoA}{meteoUnit}</b> 升至 <b>{meteoB}{meteoUnit}</b>" +
+      "（升 {meteoRise}{meteoUnit}）。同期采暖泵日总电耗由 <b>{totalA} kWh</b> 变为 " +
+      "<b>{totalB} kWh</b>，相对变化率 Δr = <b>{deltaR}</b>，降幅已达 {thresholdAbs} 以上。",
+  },
+  title: { triggered: "采暖泵电耗降幅不足 {thresholdAbs}", normal: "采暖泵电耗已随气温回升下降" },
+  steps: [
+    {
+      kind: "test",
+      what: "冬季升温幅度",
+      sub: "选窗前提：采暖季连续日对的日均干球温升",
+      val: "{meteoRise}{meteoUnit}",
+      req: "≥ {meteoThreshold}{meteoUnit}",
+      key: "meteo",
+    },
+    {
+      kind: "stated",
+      what: "取数据",
+      sub: "冷冻(采暖)泵与热水循环泵的日累计电耗合计",
+      val: "{labelA} {totalA} kWh · {labelB} {totalB} kWh",
+      req: "—",
+    },
+    {
+      kind: "test",
+      what: "采暖泵电耗相对变化率 Δr",
+      sub: "(升温后 − 升温前) ÷ 升温前，为负表示电耗下降",
+      val: "{deltaR}",
+      req: "> {threshold}",
+      key: "dr",
+    },
+  ],
+  foot: {
+    triggered: "判据满足 → 判定为 <b>目标调适</b>",
+    normal: "判据未满足 → 判定为 <b>正常</b>",
+  },
+  /* 手册 C07「物理原理」+「关键参数工程学依据」原文 */
+  causes: [
+    "采暖输配系统缺乏气候补偿变频控制，循环泵不随室外温升降频",
+    "二次侧阀门锁定在大流量状态——水力失衡在采暖季的对称表现",
+    "围护结构热损失已显著减小，但输配侧未同步减量",
+  ],
+  readHint: {
+    slope:
+      "线以升温前那天为 100% 起点，落差就是采暖泵电耗的相对变化。" +
+      "横轴下方标注的是两天的室外干球温度——气温上去了、线却没下来，就是这条规则要抓的情形。",
+  },
+};
+
 /* 已填写的规则；未填写的返回 null，页面据此隐藏叙述层但保留图表 */
 const NARRATIVES = {
   C01,
@@ -725,6 +793,8 @@ const NARRATIVES = {
   CR0019: C02,
   C06,
   CR0025: C06,
+  C07,
+  CR0027: C07,
 };
 
 /* 后端 ruleCode 可能带前后缀或大小写差异，做一次归一化再匹配 */
