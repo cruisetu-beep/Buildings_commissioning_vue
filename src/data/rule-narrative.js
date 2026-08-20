@@ -337,6 +337,65 @@ const BC_S1 = {
   },
 };
 
+/* C03（CR0021）。第一条反向判据（R < 1/3 触发）。
+   ✓/✕ 照抄 D05：取后端 metrics.passed（false = 触发），不自己比大小——
+   R 可能为负（泵不是涨得少，是反而降了），符号方向自己比容易写错。
+   「要求」列写触发条件，✓ 指向触发，与 C01 / BA-S1 / BC-S1 同向。
+   温度只有窗口级字符串 meteoCondition（如「干球升4.0℃」），
+   payload 里没有 Day A / Day B 的日均温数值，已挂问题清单。 */
+const C03 = {
+  narrative: {
+    triggered:
+      "{dayA} → {dayB}（{meteo}）冷冻泵日电耗从 <b>{pumpA} kWh</b> 变为 <b>{pumpB} kWh</b>（{dPump}），" +
+      "同期冷水主机从 <b>{chillerA} kWh</b> 变为 <b>{chillerB} kWh</b>（{dChiller}）。" +
+      "两者涨幅之比 R = <b>{r}</b>。",
+    normal:
+      "{dayA} → {dayB}（{meteo}）冷冻泵日电耗从 <b>{pumpA} kWh</b> 变为 <b>{pumpB} kWh</b>（{dPump}），" +
+      "同期冷水主机从 <b>{chillerA} kWh</b> 变为 <b>{chillerB} kWh</b>（{dChiller}）。" +
+      "两者涨幅之比 R = <b>{r}</b>，未低于 {threshold} 的门槛。",
+  },
+  title: { triggered: "冷冻泵电耗未跟随主机上涨", normal: "冷冻泵电耗随主机同步上涨" },
+  steps: [
+    {
+      kind: "stated",
+      what: "取数据",
+      sub: "连续升温日对 {dayA} → {dayB}（{meteo}），分别取冷冻泵（U2A01）与冷水主机（U2A00）的日总电耗",
+      val: "泵 {pumpA} → {pumpB} kWh · 机 {chillerA} → {chillerB} kWh",
+      req: "—",
+    },
+    {
+      kind: "stated",
+      what: "各自涨幅",
+      sub: "以升温前那天为基数，计算两个节点的相对变化率",
+      val: "泵 {dPump} · 机 {dChiller}",
+      req: "—",
+    },
+    {
+      kind: "test",
+      what: "输配-冷源响应比 R",
+      sub: "泵的相对涨幅除以主机的相对涨幅",
+      val: "{r}",
+      req: "< {threshold}",
+      key: "r",
+    },
+  ],
+  foot: {
+    triggered: "判据满足 → 判定为 <b>目标调适</b>",
+    normal: "判据未满足 → 判定为 <b>正常</b>",
+  },
+  /* 取自手册 C03「关键参数工程学依据」。第 3 条严格说是排查动作而非故障原因，
+     但它正是区分前两条的手段，放在「建议核查」里合适（已与规则负责人确认）。 */
+  causes: [
+    "水泵为定频运行，末端阀门开大使阻力曲线右移，电耗仅微增（通常 <5%）",
+    "水泵严重过流选型，低负荷时已达出力顶峰，高负荷时无法再升频",
+    "核对水泵运行频率日志：长期钉死在最低限（30~35Hz）多为选型过大或末端负荷率过低；处于中高频段（>40Hz）却无跟随响应则为变频控制策略缺陷",
+  ],
+  readHint: {
+    slope:
+      "两条线都以升温前那天为 100% 起点，斜率就是各自的涨幅。虚线是手册要求冷冻泵至少应达到的位置（主机涨幅的 1/3），泵线落在虚线下方即触发。",
+  },
+};
+
 /* 已填写的规则；未填写的返回 null，页面据此隐藏叙述层但保留图表 */
 const NARRATIVES = {
   C01,
@@ -349,6 +408,8 @@ const NARRATIVES = {
   CR0034: BA_S1,
   "BC-S1": BC_S1,
   CR0038: BC_S1,
+  C03,
+  CR0021: C03,
 };
 
 /* 后端 ruleCode 可能带前后缀或大小写差异，做一次归一化再匹配 */

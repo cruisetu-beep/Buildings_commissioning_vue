@@ -20,6 +20,8 @@ import {
   buildScheduleOption,
   parseRegression,
   buildRegressionOption,
+  parseDayPair,
+  buildDayPairOption,
 } from "../../../data/viz-chart-options-v2.js";
 
 const props = defineProps({
@@ -81,7 +83,8 @@ const vizKind = computed(() => rawJson.value?.type || "");
 const cluster = computed(() => (vizKind.value === "clustering" ? parseClustering(rawJson.value) : null));
 const schedule = computed(() => (vizKind.value === "schedule" ? parseSchedule(rawJson.value) : null));
 const regression = computed(() => (vizKind.value === "regression" ? parseRegression(rawJson.value) : null));
-const hasViz = computed(() => !!(cluster.value || schedule.value || regression.value));
+const dayPair = computed(() => (vizKind.value === "dayPair" ? parseDayPair(rawJson.value) : null));
+const hasViz = computed(() => !!(cluster.value || schedule.value || regression.value || dayPair.value));
 
 const VIEWS = {
   clustering: [
@@ -95,6 +98,10 @@ const VIEWS = {
   ],
   regression: [
     { k: "scat", label: "散点与拟合" },
+    { k: "data", label: "数据" },
+  ],
+  dayPair: [
+    { k: "slope", label: "涨幅对比" },
     { k: "data", label: "数据" },
   ],
 };
@@ -204,6 +211,27 @@ const vals = computed(() => {
       _m: m,
     };
   }
+  if (dayPair.value) {
+    const p = dayPair.value;
+    const [pump, chiller] = p.rows;
+    return {
+      dayA: fmtDate(p.dayA),
+      dayB: fmtDate(p.dayB),
+      /* 升温幅度只有窗口级字符串，resultJson 里没有温度数值 */
+      meteo: w.meteoCondition || "—",
+      pumpA: num(pump.dayA),
+      pumpB: num(pump.dayB),
+      chillerA: num(chiller.dayA),
+      chillerB: num(chiller.dayB),
+      dPump: pct(p.dPump),
+      dChiller: pct(p.dChiller),
+      /* num() 会丢掉尾部零（R=0 显示成「0」），与要求列的 0.3333 对不齐，
+         这里保留定点小数 */
+      r: Number.isFinite(Number(p.r)) ? Number(p.r).toFixed(4) : "—",
+      threshold: Number.isFinite(Number(p.threshold)) ? Number(p.threshold).toFixed(4) : "—",
+      _m: m,
+    };
+  }
   return null;
 });
 
@@ -243,6 +271,9 @@ function stepPassed(key, m) {
      该规则是"有一项不达标即触发"，结论由 foot 给出。 */
   if (key === "r2") return m.r2Passed === true;
   if (key === "slope") return m.slopePassed === true;
+  /* C03：反向判据（R < 1/3 触发），且 R 可能为负。照 D05 取后端布尔，
+     passed === false 即触发；不在前端比大小。 */
+  if (key === "r") return m.passed === false;
   return null;
 }
 const steps = computed(() => {
@@ -291,6 +322,8 @@ function render() {
     );
   } else if (regression.value) {
     option = buildRegressionOption(regression.value);
+  } else if (dayPair.value) {
+    option = buildDayPairOption(dayPair.value);
   }
   if (option) chart.setOption(option, true);
 }
@@ -465,6 +498,29 @@ const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
                     <td class="mono">{{ i + 1 }}</td>
                     <td class="mono">{{ r[0] }}</td>
                     <td class="mono">{{ r[1] }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- C 类：升温日对的两个节点日总电耗 -->
+            <div v-if="view === 'data' && dayPair" class="v2-tblwrap">
+              <table class="v2-dt">
+                <thead>
+                  <tr>
+                    <th>节点</th>
+                    <th>{{ dayPair.labelA }} {{ dayPair.dayA }} ({{ dayPair.unit }})</th>
+                    <th>{{ dayPair.labelB }} {{ dayPair.dayB }} ({{ dayPair.unit }})</th>
+                    <th>变化</th>
+                    <th>变化率</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in dayPair.rows" :key="r.name">
+                    <td>{{ r.name }}</td>
+                    <td class="mono">{{ r.dayA }}</td>
+                    <td class="mono">{{ r.dayB }}</td>
+                    <td class="mono">{{ r.delta > 0 ? "+" : "" }}{{ r.delta }}</td>
+                    <td class="mono">{{ (r.rate * 100).toFixed(1) }}%</td>
                   </tr>
                 </tbody>
               </table>

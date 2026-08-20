@@ -584,3 +584,146 @@ export function buildScheduleOption(d, yName = "空调用电 (kW)") {
     series,
   };
 }
+
+/* ───────────────────────────── C 类：升温日对 ─────────────────────────────
+   C03（CR0021）。两个节点 × 两天，共 4 个日总电耗值。
+
+   为什么不画分组柱状图：泵与主机的绝对值差约 90 倍（72 vs 6578 kWh），
+   泵柱在同一纵轴上是一条看不见的线；而判据比的本来就是相对涨幅。
+   故归一化到 Day A = 100%，两条线的斜率即各自涨幅。
+
+   合格线 = 100% + Δ机 / 3，是判据 R ≥ 1/3 ⇔ Δ泵 ≥ Δ机 × 阈值 的代数改写，
+   只用了后端的 deltaChiller 与 threshold，未复刻判定逻辑（✓/✕ 仍取 passed）。
+   Δ机 ≤ 0 时该线无工程含义，此时不画。 */
+export function parseDayPair(raw) {
+  if (!raw || raw.type !== "dayPair") return null;
+  const rows = raw.energyBreakdown?.series || [];
+  if (rows.length < 2) return null;
+
+  const pick = (code) => rows.find((r) => String(r.name).startsWith(code)) || null;
+  const pump = pick("U2A01");
+  const chiller = pick("U2A00");
+  if (!pump || !chiller) return null;
+
+  const m = raw.metrics || {};
+  const rate = (r) => (Number(r.dayA) ? (Number(r.dayB) - Number(r.dayA)) / Number(r.dayA) : NaN);
+  const dPump = Number.isFinite(Number(m.deltaPump)) ? Number(m.deltaPump) : rate(pump);
+  const dChiller = Number.isFinite(Number(m.deltaChiller)) ? Number(m.deltaChiller) : rate(chiller);
+  const th = Number(m.threshold);
+
+  return {
+    kind: "dayPair",
+    dayA: raw.dayA?.date || raw.windowDays?.[0] || "",
+    dayB: raw.dayB?.date || raw.windowDays?.[1] || "",
+    labelA: raw.dayA?.label || "Day A",
+    labelB: raw.dayB?.label || "Day B",
+    unit: raw.energyBreakdown?.unit || "kWh",
+    rows: [pump, chiller].map((r) => ({
+      name: r.name,
+      dayA: Number(r.dayA),
+      dayB: Number(r.dayB),
+      delta: Number(r.delta),
+      rate: rate(r),
+    })),
+    pumpName: pump.name,
+    chillerName: chiller.name,
+    dPump,
+    dChiller,
+    r: Number(m.r_pump_chiller),
+    threshold: th,
+    /* 泵至少应到达的相对位置（%）；Δ机 ≤ 0 时不成立 */
+    passLine: dChiller > 0 && Number.isFinite(th) ? 100 + dChiller * th * 100 : null,
+  };
+}
+
+export function buildDayPairOption(d) {
+  const pumpPts = [100, 100 + d.dPump * 100];
+  const chillerPts = [100, 100 + d.dChiller * 100];
+  const all = [...pumpPts, ...chillerPts, d.passLine].filter(Number.isFinite);
+  const min = Math.floor(Math.min(...all, 100) - 4);
+  const max = Math.ceil(Math.max(...all) + 4);
+  const fmt = (v) => `${v.toFixed(1)}%`;
+
+  const mkLine = (name, pts, color) => ({
+    name,
+    type: "line",
+    data: pts.map((v) => Number(v.toFixed(2))),
+    symbol: "circle",
+    symbolSize: 8,
+    lineStyle: { color, width: 2.5 },
+    itemStyle: { color },
+    label: {
+      show: true,
+      position: "top",
+      color,
+      fontSize: 11,
+      fontWeight: 600,
+      formatter: (p) => fmt(p.value),
+    },
+  });
+
+  const pump = mkLine(d.pumpName, pumpPts, COLOR.days[0]);
+  const chiller = mkLine(d.chillerName, chillerPts, COLOR.days[2]);
+
+  if (Number.isFinite(d.passLine)) {
+    pump.markLine = {
+      silent: true,
+      symbol: "none",
+      data: [{ yAxis: Number(d.passLine.toFixed(2)) }],
+      lineStyle: { color: COLOR.highText, type: "dashed", width: 1 },
+      label: {
+        formatter: `泵的合格位置 ${d.passLine.toFixed(1)}%`,
+        color: COLOR.highText,
+        fontSize: 10,
+      },
+    };
+  }
+
+  return {
+    grid: { left: 66, right: 92, top: 46, bottom: 44 },
+    legend: {
+      top: 6,
+      right: 10,
+      itemWidth: 12,
+      itemHeight: 8,
+      textStyle: { color: COLOR.axisName, fontSize: 11 },
+      data: [d.pumpName, d.chillerName],
+    },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "#fff",
+      borderColor: "rgba(60,110,200,.2)",
+      textStyle: { color: "#0f1d3d", fontSize: 12 },
+      formatter: (ps) => {
+        const i = ps[0].dataIndex;
+        const head = i === 0 ? `${d.labelA} ${d.dayA}` : `${d.labelB} ${d.dayB}`;
+        const body = d.rows
+          .map((r) => `${r.name}：<b>${i === 0 ? r.dayA : r.dayB} ${d.unit}</b>`)
+          .join("<br/>");
+        return `${head}<br/>${body}`;
+      },
+    },
+    xAxis: {
+      type: "category",
+      data: [`${d.labelA} ${String(d.dayA).slice(5)}`, `${d.labelB} ${String(d.dayB).slice(5)}`],
+      boundaryGap: ["18%", "18%"],
+      axisLine: { lineStyle: { color: COLOR.line } },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11 },
+    },
+    yAxis: {
+      type: "value",
+      name: "相对升温前 (%)",
+      nameLocation: "middle",
+      nameGap: 46,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      min,
+      max,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11, formatter: "{value}%" },
+      splitLine: { lineStyle: { color: COLOR.split } },
+    },
+    series: [pump, chiller],
+  };
+}
