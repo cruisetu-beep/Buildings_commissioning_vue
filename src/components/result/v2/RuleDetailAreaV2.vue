@@ -99,6 +99,14 @@ const distribution = computed(() =>
    画一个不存在的对比，故**只关图、保留数据表**——数据表如实显示两列
    数值完全相同，正是「这不是一次真的对比」的直接证据。 */
 const gated = computed(() => !!dayPair.value?.gate);
+/* 门控窗口的外层 meteoCondition 仍宣称有盛夏对照日（实测「过渡季 h=21.4 vs
+   盛夏 08-09」），而内层 resultJson 的 dayB 就是 dayA——信封与内容不一致，
+   已挂问题清单。前端不改写后端字段：两个都留，只点明哪个是计划、哪个是实际，
+   否则这行会与正下方结论卡的「盛夏对照日未取到」在同一屏里打架。 */
+const condText = computed(() => {
+  const c = activeWindow.value?.meteoCondition || "—";
+  return gated.value ? `选窗计划：${c}；实际未取到对照日` : c;
+});
 const hasViz = computed(
   () => !!(cluster.value || schedule.value || regression.value || dayPair.value || distribution.value)
 );
@@ -717,7 +725,7 @@ const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
         <div class="v2-chart-bar" @click="toggle('chart')">
           <span class="v2-ar">▶</span>
           <span class="v2-cond">计算过程</span>
-          <span class="v2-cond-txt">{{ activeWindow?.meteoCondition || "—" }}</span>
+          <span class="v2-cond-txt">{{ condText }}</span>
           <div v-if="views.length" class="v2-seg" @click.stop>
             <button
               v-for="v in views"
