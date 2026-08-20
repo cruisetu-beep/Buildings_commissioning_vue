@@ -469,6 +469,13 @@ export function parseSchedule(raw) {
      与后端时刻所在小时三窗口全部一致。
      metrics.threshold 是十进制小时（7.5 = 07:30）；温差阈值 3.0℃ 不在
      payload 里，取自手册原文。 */
+  /* LunchDrop（AA-S3）。取数时段由逐时数据反推确定，三窗口精确吻合：
+       P_am = mean(09:00–11:00)  P_l = mean(12:00–14:00)
+     判据 drop = (P_am − P_l)/P_am < 15% 触发，**单边**：drop 为负
+     （午休功率反高于上午）同样满足，文案须分方向表述，不能写「降幅 -69.9%」。
+     drop 由后端给，不前端复算——后端是拿已四舍五入到两位小数的 P_am/P_l
+     相除（实测 W1 复算 0.0323 vs 后端 0.0325）。 */
+  const isLunch = m.algo === "LunchDrop";
   const isPre = m.algo === "Precool";
   const startHour = isPre ? parseInt(String(m.start).slice(0, 2), 10) : NaN;
   const hhmm = (dec) => {
@@ -504,6 +511,9 @@ export function parseSchedule(raw) {
     sr: m.sr,
     dayAvg,
     nightAvg,
+    drop: m.drop,
+    pam: m.pam,
+    pl: m.pl,
     start: m.start,
     startHour,
     startLimit: isPre ? hhmm(m.threshold) : "",
@@ -523,6 +533,11 @@ export function parseSchedule(raw) {
       ? [
           { from: "08:00", to: "17:00", label: "日间 08:00–18:00", fill: "rgba(245,154,82,.10)", text: "#e08b2f" },
           { from: "21:00", to: "23:00", label: "夜间(前段)", fill: "rgba(122,92,255,.07)", text: "#7a5cff" },
+        ]
+      : isLunch
+      ? [
+          { from: "09:00", to: "10:00", label: "上午 09:00–11:00", fill: "rgba(245,154,82,.10)", text: "#e08b2f" },
+          { from: "12:00", to: "13:00", label: "午休 12:00–14:00", fill: "rgba(122,92,255,.10)", text: "#7a5cff" },
         ]
       : isPre && Number.isFinite(startHour)
       ? [
@@ -547,6 +562,11 @@ export function parseSchedule(raw) {
       ? [
           { y: nightAvg, label: `夜间平均 ${nightAvg.toFixed(2)} kW`, color: "#7a5cff" },
           { y: dayAvg, label: `日间平均 ${dayAvg.toFixed(2)} kW`, color: "#e54e6e" },
+        ]
+      : isLunch
+      ? [
+          { y: Number(m.pam), label: `上午平均 ${m.pam} kW`, color: "#e54e6e" },
+          { y: Number(m.pl), label: `午休平均 ${m.pl} kW`, color: "#7a5cff" },
         ]
       : [],
   };

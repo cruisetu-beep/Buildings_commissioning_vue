@@ -181,6 +181,28 @@ const vals = computed(() => {
           _m: m,
         };
       }
+      /* LunchDrop（AA-S3）：判据单边，drop 为负表示午休功率反高于上午。
+         模板不支持条件分支，方向措辞在这里定好再塞进句子——
+         直接写「降幅 -69.9%」会被读成「降了负数」 */
+      if (d.algo === "LunchDrop") {
+        const dr = Number(d.drop);
+        return {
+          date: fmtDate(d.date),
+          selectionReason: d.selectionReason,
+          pam: fix1(d.pam),
+          pl: fix1(d.pl),
+          drop: pct(d.drop),
+          dropDesc: Number.isFinite(dr)
+            ? dr >= 0
+              ? `较上午下降 ${(dr * 100).toFixed(1)}%`
+              : `较上午反而上升 ${(-dr * 100).toFixed(1)}%`
+            : "—",
+          threshold: pct(d.threshold),
+          dayMin: num(d.dayMin),
+          dayMax: num(d.dayMax),
+          _m: m,
+        };
+      }
       /* Precool（BB-S1）：启动时刻 + 温差两条判据，均取后端布尔。
          温差阈值 3.0℃ 不在 payload 里，取自手册原文 */
       if (d.algo === "Precool") {
@@ -425,6 +447,8 @@ function stepPassed(key, m) {
   if (key === "cvLow") return Number(m.cv) < Number(m.cvThreshold);
   if (key === "rMaxMean") return Number(m.maxMeanRatio) < Number(m.ratioThreshold);
   if (key === "meteoRange") return Number(m.dailyRange) >= Number(m.rangeThreshold);
+  /* AA-S3：单边判据，drop < 阈值即触发（含 drop 为负的情形） */
+  if (key === "lunchDrop") return Number(m.drop) < Number(m.threshold);
   /* BB-S1：两条判据均为后端布尔。⚠ resultMd 里第 2 行的 ✅/❌ 实测三窗口
      错了两个（mild=False 标 ✅、mild=True 标 ❌，且两个 False 窗口标法不一致），
      判决本身正确（early && mild）。故只信布尔，不看 resultMd 的表 */
@@ -486,6 +510,8 @@ function render() {
         ? "冷冻泵、冷却泵与全空气机组功率 (kW)"
         : schedule.value.algo === "Precool"
         ? "冷热站、冷冻泵与冷却泵功率 (kW)"
+        : schedule.value.algo === "LunchDrop"
+        ? "全空气机组与新风机组功率 (kW)"
         : undefined
     );
   } else if (regression.value) {

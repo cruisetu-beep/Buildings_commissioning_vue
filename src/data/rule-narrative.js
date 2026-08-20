@@ -917,6 +917,63 @@ const BB_S1 = {
   },
 };
 
+/* AA-S3（CR0033）。⚠ 与 AA-S2 / BA-S2 同属**手册两版都没有正文**的五条之一
+   （v4 标「v2 原文保留」，而 v2.1 的 S 系章节从头到尾只有表格）。
+   causes 无原文可抄，只列后端 judgmentStandard 那句判定口径，
+   等规则负责人补正文后替换即可，纯增量。
+
+   取数时段由逐时数据反推确定，三窗口精确吻合：
+     P_am = mean(09:00–11:00)   P_l = mean(12:00–14:00)
+   ⚠ 判据 **单边**：drop = (P_am − P_l)/P_am < 15% 触发，drop 为负
+     （午休功率反高于上午）同样满足。模板不支持条件分支，方向措辞在
+     RuleDetailAreaV2 的 vals 里算好成 {dropDesc} 再塞进句子——
+     直接写「降幅 -69.9%」会被读成「降了负数」。
+   ⚠ drop 取后端值不前端复算：后端是拿已四舍五入到两位小数的 P_am/P_l
+     相除（W1 复算 0.0323 vs 后端 0.0325）。
+   数据源 U2B01+U2B02 是 U2B00 下的兄弟节点，相加不重复计入。
+   ✓/✕ 直接比阈值（无 passed 布尔，方向固定），指向触发。 */
+const AA_S3 = {
+  narrative: {
+    triggered:
+      "{date}（{selectionReason}）上午 09:00–11:00 全空气机组与新风机组的平均功率为 " +
+      "<b>{pam} kW</b>，午休 12:00–14:00 为 <b>{pl} kW</b>，<b>{dropDesc}</b>。" +
+      "当日逐时功率在 {dayMin} – {dayMax} kW 之间。",
+    normal:
+      "{date}（{selectionReason}）上午 09:00–11:00 全空气机组与新风机组的平均功率为 " +
+      "<b>{pam} kW</b>，午休 12:00–14:00 为 <b>{pl} kW</b>，<b>{dropDesc}</b>，" +
+      "已达到 {threshold} 的降载门槛。",
+  },
+  title: { triggered: "午休时段风机未降载", normal: "午休时段风机已降载" },
+  steps: [
+    {
+      kind: "stated",
+      what: "取数据",
+      sub: "典型工作日 {date} 上午 09:00–11:00 与午休 12:00–14:00 两个时段的风机平均功率",
+      val: "上午 {pam} kW · 午休 {pl} kW",
+      req: "—",
+    },
+    {
+      kind: "test",
+      what: "午休降幅",
+      sub: "午休时段平均功率相对上午的下降比例，为负表示午休反而更高",
+      val: "{drop}",
+      req: "< {threshold}",
+      key: "lunchDrop",
+    },
+  ],
+  foot: {
+    triggered: "判据满足 → 判定为 <b>目标调适</b>",
+    normal: "判据未满足 → 判定为 <b>正常</b>",
+  },
+  /* 唯一一条，出处是后端 judgmentStandard，不是手册。其余留空走组件兜底。 */
+  causes: ["午休时段风机管控失效（后端判定口径，手册暂无该规则正文）"],
+  readHint: {
+    day:
+      "两片底纹是算法的两个取数时段（上午 09:00–11:00、午休 12:00–14:00），" +
+      "两条虚线是各自时段的平均功率，判据就是后者相对前者的下降比例。",
+  },
+};
+
 /* 已填写的规则；未填写的返回 null，页面据此隐藏叙述层但保留图表 */
 const NARRATIVES = {
   C01,
@@ -947,6 +1004,8 @@ const NARRATIVES = {
   CR0024: C04,
   "BB-S1": BB_S1,
   CR0036: BB_S1,
+  "AA-S3": AA_S3,
+  CR0033: AA_S3,
 };
 
 /* 后端 ruleCode 可能带前后缀或大小写差异，做一次归一化再匹配 */
