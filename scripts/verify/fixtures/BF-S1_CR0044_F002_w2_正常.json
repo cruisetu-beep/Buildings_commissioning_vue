@@ -1,0 +1,17 @@
+{
+  "ruleCode": "BF-S1",
+  "buildId": "310101F002",
+  "note": "真实后端 payload，勿手改数值",
+  "window": {
+    "cxRuleId": "CR0044",
+    "analysisYear": 2025,
+    "windowGroup": 2,
+    "calcResult": {
+      "buildId": "310101F002",
+      "cxRuleId": "CR0044",
+      "category": "正常",
+      "visualType": "E",
+      "resultJson": "{\"type\": \"schedule\", \"ruleId\": \"CR0044\", \"buildingType\": null, \"group\": \"S\", \"windows\": [{\"type\": \"sWindow\", \"dateFrom\": \"2025-08-24\", \"dateTo\": \"2025-06-02\", \"pairDate\": null, \"selectionReason\": \"高负荷08-24/低负荷06-02\", \"windowType\": \"对\"}], \"hourlyProfiles\": {\"workday\": [0.02, 0.02, 0.05, 0.02, 0.02, 0.02, 0.15, 0.07, 0.33, 0.8, 0.83, 0.35, 0.38, 0.35, 0.35, 0.38, 0.35, 0.38, 0.38, 0.38, 0.38, 0.2, 0, 0], \"holiday\": [0, 0, 0.02, 0, 0, 0, 0, 0.02, 0.05, 1.65, 1.02, 0.95, 0.95, 0.95, 1.1, 1.35, 0.95, 1.12, 1.27, 0.98, 0.98, 0.22, 0, 0]}, \"metrics\": {\"gap\": 1.1935, \"eH\": 24.8, \"eL\": 54.4, \"threshold\": 0.3, \"algo\": \"HighLowGap\"}, \"category\": \"正常\"}"
+    }
+  }
+}

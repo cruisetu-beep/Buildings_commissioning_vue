@@ -10,7 +10,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { build } from "./extract.mjs";
 import { getRuleNarrative, fillTemplate } from "../../src/data/rule-narrative.js";
-import { buildDayPairOption, parseDayPair } from "../../src/data/viz-chart-options-v2.js";
+import {
+  buildDayPairOption, parseDayPair, buildScheduleOption, parseSchedule,
+} from "../../src/data/viz-chart-options-v2.js";
 
 const DIR = import.meta.dirname;
 const FIX = path.join(DIR, "fixtures");
@@ -106,6 +108,17 @@ for (const file of fs.readdirSync(FIX).filter((f) => f.endsWith(".json")).sort()
        而这两个字段既不在 vals 里也不在图上，只靠上面三项抓不到
        （实测把 D04 的 delta 改回后端原值——符号是反的——全部照样通过）。 */
     snapObj.rows = d.rows?.map((r) => ({ name: r.name, dayA: r.dayA, dayB: r.dayB, delta: r.delta, rate: r.rate }));
+  }
+  /* E 类同样要覆盖：图例名与曲线归属只在 option.series 里，vals 抓不到。
+     BF-S1 的两条曲线若标反（把「高负荷」贴到低负荷线上），
+     只看 vals 完全发现不了。 */
+  if (raw.type === "schedule") {
+    const d = parseSchedule(raw);
+    const opt = buildScheduleOption(d);
+    snapObj.chart = {
+      series: opt.series?.map((s) => ({ name: s.name, head: s.data?.slice(0, 3) })),
+      wdName: d.wdName, holName: d.holName, wdDate: d.wdDate, holDate: d.holDate,
+    };
   }
   const snapFile = path.join(SNAP, file);
   const cur = JSON.stringify(snapObj, null, 2);

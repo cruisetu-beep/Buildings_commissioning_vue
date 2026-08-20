@@ -265,6 +265,24 @@ const vals = computed(() => {
         _m: m,
       };
     }
+    /* BF-S1：高/低负荷日对照。metrics 无 passed，判据在 stepPassed 里直接比。
+       eH/eL 是逐时积分的 4 倍（六·B），但 gap 为比值、4 倍对消，故照常取用。 */
+    if (d.algo === "HighLowGap") {
+      return {
+        wdDate: fmtDate(d.wdDate),
+        holDate: fmtDate(d.holDate),
+        wdName: d.wdName,
+        holName: d.holName,
+        selectionReason: d.selectionReason,
+        gap: pct(d.gap),
+        gapThreshold: pct(d.threshold),
+        eH: num(d.eH),
+        eL: num(d.eL),
+        wdPeak: fix1(d.wdPeak),
+        holPeak: fix1(d.holPeak),
+        _m: m,
+      };
+    }
     /* E 类双曲线形态（D05 等日对规则） */
     if (d.algo === "DayPairResidual") {
       /* AA-S2：无温度匹配、无 weekday 标签、无 passed。
@@ -562,6 +580,10 @@ function stepPassed(key, m) {
      此时 passed=true 的意思是「放行」不是「合格」，必须返回 null
      让判据表显示「—」而非 ✕，否则等于宣称「已检查、不满足」。 */
   if (key === "pr") return m.gate ? null : m.passed === false;
+  /* BF-S1：反向判据，gap < 阈值触发（差距小＝低负荷日没卸载）。
+     metrics 里没有 passed，只能直接比——三窗口实测与 category 一致：
+     0.2078<0.3 触发、1.1935>0.3 正常、0.5144>0.3 正常。 */
+  if (key === "gap") return Number(m.gap) < Number(m.threshold);
   return null;
 }
 const steps = computed(() => {
@@ -763,8 +785,11 @@ const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
                 <thead>
                   <tr>
                     <th>时刻</th>
-                    <th>工作日 {{ schedule.wdDate.slice(5) }}</th>
-                    <th>节假日 {{ schedule.holDate.slice(5) }}</th>
+                    <!-- 表头原为写死的「工作日 / 节假日」，与图例（已用 holName）不一致。
+                         BF-S1 是「高负荷日 / 低负荷日」，必须改；顺带令 AA-S2 的
+                         「假日」、BA-S2 的「周末」在表格与图例上一致。 -->
+                    <th>{{ schedule.wdName || "工作日" }} {{ schedule.wdDate.slice(5) }}</th>
+                    <th>{{ schedule.holName || "节假日" }} {{ schedule.holDate.slice(5) }}</th>
                     <th>差值</th>
                   </tr>
                 </thead>

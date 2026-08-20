@@ -419,6 +419,49 @@ export function parseSchedule(raw) {
        后端没有显式字段，已要求补 workday/holiday 对象，补上后改回读对象。
        曲线本身不受影响——hourlyProfiles.workday/holiday 的键是明确的，
        且已复核 Σworkday×4 == eWork，两条线不会画反。 */
+    /* BF-S1（CR0044）：体育场馆高负荷日 / 低负荷日的空调逐时曲线对照。
+       windows[0] 与 DayPairResidual 同为 sWindow（只有 dateFrom/dateTo），
+       但 metrics 完全不同：gap / eH / eL / threshold，且**没有 passed**，
+       判据只能在前端直接比大小（gap < threshold 触发，反向判据）。
+
+       ⚠ 两条曲线的归属已核对，不是猜的：Σworkday×4 = 50.92 ≈ eH = 51，
+          即 workday ↔ dateFrom ↔ 高负荷日，holiday ↔ dateTo ↔ 低负荷日。
+          注意不能套用 DayPairResidual 那个 holName 正则——它取
+          selectionReason 的非数字前缀，对「高负荷08-09/低负荷06-01」
+          会取出「高负荷」并贴到 holiday 曲线上，正好标反。此处按 "/"
+          切成两段，各取各的前缀。
+
+       ⚠ eH / eL 同样是 hourlyProfiles 积分的 4.00 倍（六·B，三窗口实测
+          4.01 / 3.99 / 4.01）。D05、AA-S2 可以改用积分绕开，BF-S1 绕不开
+          ——判据 gap 就建在 eH / eL 上。所幸 gap 是比值，4 倍在分子分母
+          对消，结论不受影响。**不要「顺手修正」eH / eL，那会把判据搞坏。**
+
+       ⚠ resultMd 写的公式是 (E_H − E_L)/E_H，后端实际算的是
+          (E_L − E_H)/E_H，三个窗口无一例外。按实现接入，已挂问题清单。 */
+    if (m.algo === "HighLowGap") {
+      const seg = String(w0.selectionReason || "")
+        .split("/")
+        .map((s) => (s.match(/^([^\d]+)/)?.[1] || "").trim());
+      const nm = (s, dflt) => (s ? `${s}日` : dflt);
+      return {
+        ...base,
+        algo: m.algo,
+        wdDate: w0.dateFrom || "",
+        holDate: w0.dateTo || "",
+        wdName: nm(seg[0], "高负荷日"),
+        holName: nm(seg[1], "低负荷日"),
+        selectionReason: w0.selectionReason || "",
+        gap: Number(m.gap),
+        eH: Number(m.eH),
+        eL: Number(m.eL),
+        threshold: Number(m.threshold),
+        wdPeak: Math.max(...wd),
+        wdBase: Math.min(...wd),
+        holPeak: Math.max(...hol),
+        holBase: Math.min(...hol),
+      };
+    }
+
     const isDpr = m.algo === "DayPairResidual";
     return {
       ...base,
@@ -600,7 +643,8 @@ export function buildScheduleOption(d, yName = "空调用电 (kW)") {
        AA-S2 实际选窗取到的是周末，只能用中性的「假日」。 */
     const tag = (name, date, week) => [name, String(date || "").slice(5), week].filter(Boolean).join(" ");
     series = [
-      line(tag("工作日", d.wdDate, d.wdWeek), d.workday, "#2f7fff"),
+      /* wdName 供 BF-S1 用「高负荷日」；其余规则不设该字段，仍是「工作日」 */
+      line(tag(d.wdName || "工作日", d.wdDate, d.wdWeek), d.workday, "#2f7fff"),
       line(tag(d.holName || "节假日", d.holDate, d.holWeek), d.holiday, "#f59a52"),
     ];
   } else {

@@ -79,5 +79,32 @@
       "passed": true
     },
     "expect": null
+  },
+  {
+    "name": "gap 触发：0.2078 < 0.3",
+    "key": "gap",
+    "m": {
+      "gap": 0.2078,
+      "threshold": 0.3
+    },
+    "expect": true
+  },
+  {
+    "name": "gap 正常：1.1935 > 0.3",
+    "key": "gap",
+    "m": {
+      "gap": 1.1935,
+      "threshold": 0.3
+    },
+    "expect": false
+  },
+  {
+    "name": "gap 反向判据：无 passed 字段，靠直接比大小，方向写反就会挂",
+    "key": "gap",
+    "m": {
+      "gap": 0.5144,
+      "threshold": 0.3
+    },
+    "expect": false
   }
 ]
