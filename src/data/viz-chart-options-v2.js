@@ -651,46 +651,79 @@ export function buildScheduleOption(d, yName = "空调用电 (kW)") {
    Δ机 ≤ 0 时该线无工程含义，此时不画。 */
 export function parseDayPair(raw) {
   if (!raw || raw.type !== "dayPair") return null;
-  const rows = raw.energyBreakdown?.series || [];
-  if (rows.length < 2) return null;
-
-  const pick = (code) => rows.find((r) => String(r.name).startsWith(code)) || null;
-  const pump = pick("U2A01");
-  const chiller = pick("U2A00");
-  if (!pump || !chiller) return null;
+  const src = raw.energyBreakdown?.series || [];
+  if (src.length < 2) return null;
 
   const m = raw.metrics || {};
   const rate = (r) => (Number(r.dayA) ? (Number(r.dayB) - Number(r.dayA)) / Number(r.dayA) : NaN);
-  const dPump = Number.isFinite(Number(m.deltaPump)) ? Number(m.deltaPump) : rate(pump);
-  const dChiller = Number.isFinite(Number(m.deltaChiller)) ? Number(m.deltaChiller) : rate(chiller);
-  const th = Number(m.threshold);
+  const rows = src.map((r) => ({
+    name: r.name,
+    dayA: Number(r.dayA),
+    dayB: Number(r.dayB),
+    delta: Number(r.delta),
+    rate: rate(r),
+  }));
 
-  return {
+  const base = {
     kind: "dayPair",
+    algo: m.r_pump_chiller !== undefined ? "PumpChillerRatio" : "RejectDelta",
     dayA: raw.dayA?.date || raw.windowDays?.[0] || "",
     dayB: raw.dayB?.date || raw.windowDays?.[1] || "",
     labelA: raw.dayA?.label || "Day A",
     labelB: raw.dayB?.label || "Day B",
     unit: raw.energyBreakdown?.unit || "kWh",
-    rows: [pump, chiller].map((r) => ({
-      name: r.name,
-      dayA: Number(r.dayA),
-      dayB: Number(r.dayB),
-      delta: Number(r.delta),
-      rate: rate(r),
-    })),
-    pumpName: pump.name,
-    chillerName: chiller.name,
-    dPump,
-    dChiller,
-    r: Number(m.r_pump_chiller),
-    threshold: th,
-    /* 泵至少应到达的相对位置（%）；Δ机 ≤ 0 时不成立 */
-    passLine: dChiller > 0 && Number.isFinite(th) ? 100 + dChiller * th * 100 : null,
+    rows,
+    threshold: Number(m.threshold),
+    passed: m.passed,
+    /* C02 的 meteorology 带数值，C03 的只有变量名与单位 */
+    meteoVar: raw.meteorology?.variable || "",
+    meteoA: raw.meteorology?.dayA,
+    meteoB: raw.meteorology?.dayB,
+    meteoDelta: raw.meteorology?.delta,
+    meteoThreshold: raw.meteorology?.threshold,
+    meteoUnit: raw.meteorology?.unit || "",
+    meteoPassed: raw.meteorology?.conditionPassed,
+  };
+
+  /* C03（CR0021）：泵与主机各自涨幅之比，两节点 */
+  if (base.algo === "PumpChillerRatio") {
+    const pick = (code) => rows.find((r) => String(r.name).startsWith(code)) || null;
+    const pump = pick("U2A01");
+    const chiller = pick("U2A00");
+    if (!pump || !chiller) return null;
+    const dPump = Number.isFinite(Number(m.deltaPump)) ? Number(m.deltaPump) : pump.rate;
+    const dChiller = Number.isFinite(Number(m.deltaChiller)) ? Number(m.deltaChiller) : chiller.rate;
+    const th = Number(m.threshold);
+    return {
+      ...base,
+      rows: [pump, chiller],
+      pumpName: pump.name,
+      chillerName: chiller.name,
+      dPump,
+      dChiller,
+      r: Number(m.r_pump_chiller),
+      /* 泵至少应到达的相对位置（%）；Δ机 ≤ 0 时不成立 */
+      passLine: dChiller > 0 && Number.isFinite(th) ? 100 + dChiller * th * 100 : null,
+    };
+  }
+
+  /* C02（CR0019）：散热侧合计的相对变化率。节点数不定（实测 3 个），
+     且 energyBreakdown 另给 totalDayA / totalDayB —— 注意 modelNodes 的
+     parentNodeId 表明 U2A02 / U2A04 是 U2A00 的子节点，合计把两者算了两遍，
+     已挂问题清单。前端如实复述后端的合计，不自行改口径。 */
+  const tA = Number(raw.energyBreakdown?.totalDayA);
+  const tB = Number(raw.energyBreakdown?.totalDayB);
+  return {
+    ...base,
+    totalA: tA,
+    totalB: tB,
+    totalRate: Number.isFinite(tA) && tA ? (tB - tA) / tA : NaN,
+    deltaEta: Number(m.deltaEta),
   };
 }
 
 export function buildDayPairOption(d) {
+  if (d.algo === "RejectDelta") return buildRejectDeltaOption(d);
   const pumpPts = [100, 100 + d.dPump * 100];
   const chillerPts = [100, 100 + d.dChiller * 100];
   const all = [...pumpPts, ...chillerPts, d.passLine].filter(Number.isFinite);
@@ -779,5 +812,117 @@ export function buildDayPairOption(d) {
       splitLine: { lineStyle: { color: COLOR.split } },
     },
     series: [pump, chiller],
+  };
+}
+
+/* C02（CR0019）。同为归一化斜率图，但线数不定：各分项节点 + 后端给的合计。
+   合计线加粗，因为判据只看它；分项线细，用来看是谁在响应、谁没动。
+   量纲差异大（实测 132 – 10242 kWh），归一化到 Day A = 100% 后可同轴比较。
+
+   ⚠ 不画「合格线」。手册 C02 的判据 Δη ≥ -5% 与它自己给的
+   Δη = (E_A - E_B)/E_A 定义方向相反（按该定义，「降幅不足 5%」应是
+   Δη < 5%）。在方向未澄清前画一条合格线，等于替后端选一种解释。
+   ✓/✕ 仍取后端 passed，图上只呈现实测变化。 */
+function buildRejectDeltaOption(d) {
+  const norm = (a, b) => [100, Number(a) ? (Number(b) / Number(a)) * 100 : 100];
+  const lines = d.rows.map((r, i) => ({
+    name: r.name,
+    type: "line",
+    data: norm(r.dayA, r.dayB).map((v) => Number(v.toFixed(2))),
+    symbol: "circle",
+    symbolSize: 6,
+    lineStyle: { color: COLOR.days[i % COLOR.days.length], width: 1.5, type: "dashed" },
+    itemStyle: { color: COLOR.days[i % COLOR.days.length] },
+    label: {
+      show: true,
+      position: "right",
+      color: COLOR.days[i % COLOR.days.length],
+      fontSize: 10,
+      formatter: (p) => (p.dataIndex === 1 ? `${p.value.toFixed(1)}%` : ""),
+    },
+  }));
+
+  const totalName = `合计 ${d.rows.length} 项`;
+  const totalPts = norm(d.totalA, d.totalB);
+  lines.push({
+    name: totalName,
+    type: "line",
+    data: totalPts.map((v) => Number(v.toFixed(2))),
+    symbol: "circle",
+    symbolSize: 9,
+    lineStyle: { color: "#0f1d3d", width: 2.5 },
+    itemStyle: { color: "#0f1d3d" },
+    label: {
+      show: true,
+      position: "right",
+      color: "#0f1d3d",
+      fontSize: 11,
+      fontWeight: 600,
+      formatter: (p) => (p.dataIndex === 1 ? `${p.value.toFixed(1)}%` : ""),
+    },
+  });
+
+  const all = lines.flatMap((l) => l.data);
+  const min = Math.floor(Math.min(...all, 100) - 5);
+  const max = Math.ceil(Math.max(...all) + 5);
+  const meteo =
+    Number.isFinite(Number(d.meteoDelta))
+      ? `${d.meteoVar} ${d.meteoA}${d.meteoUnit} → ${d.meteoB}${d.meteoUnit}`
+      : "";
+
+  return {
+    grid: { left: 66, right: 104, top: 46, bottom: 44 },
+    legend: {
+      top: 6,
+      right: 10,
+      itemWidth: 12,
+      itemHeight: 8,
+      textStyle: { color: COLOR.axisName, fontSize: 11 },
+      data: lines.map((l) => l.name),
+    },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "#fff",
+      borderColor: "rgba(60,110,200,.2)",
+      textStyle: { color: "#0f1d3d", fontSize: 12 },
+      formatter: (ps) => {
+        const i = ps[0].dataIndex;
+        const head = i === 0 ? `${d.labelA} ${d.dayA}` : `${d.labelB} ${d.dayB}`;
+        const body = d.rows
+          .map((r) => `${r.name}：<b>${i === 0 ? r.dayA : r.dayB} ${d.unit}</b>`)
+          .join("<br/>");
+        const tot = `合计：<b>${i === 0 ? d.totalA : d.totalB} ${d.unit}</b>`;
+        return `${head}<br/>${body}<br/>${tot}`;
+      },
+    },
+    xAxis: {
+      type: "category",
+      data: [
+        `${d.labelA} ${String(d.dayA).slice(5)}`,
+        `${d.labelB} ${String(d.dayB).slice(5)}`,
+      ],
+      name: meteo,
+      nameLocation: "middle",
+      nameGap: 30,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      boundaryGap: ["18%", "18%"],
+      axisLine: { lineStyle: { color: COLOR.line } },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11 },
+    },
+    yAxis: {
+      type: "value",
+      name: "相对降温前 (%)",
+      nameLocation: "middle",
+      nameGap: 46,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      min,
+      max,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11, formatter: "{value}%" },
+      splitLine: { lineStyle: { color: COLOR.split } },
+    },
+    series: lines,
   };
 }

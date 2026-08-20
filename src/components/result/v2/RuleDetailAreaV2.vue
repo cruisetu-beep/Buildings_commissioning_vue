@@ -101,7 +101,8 @@ const VIEWS = {
     { k: "data", label: "数据" },
   ],
   dayPair: [
-    { k: "slope", label: "涨幅对比" },
+    /* C03 看涨幅、C02 看降幅，用中性词覆盖两者 */
+    { k: "slope", label: "变化对比" },
     { k: "data", label: "数据" },
   ],
 };
@@ -250,6 +251,29 @@ const vals = computed(() => {
   }
   if (dayPair.value) {
     const p = dayPair.value;
+    /* C02（CR0019）：散热侧合计的相对变化率，节点数不定 */
+    if (p.algo === "RejectDelta") {
+      return {
+        dayA: fmtDate(p.dayA),
+        dayB: fmtDate(p.dayB),
+        labelA: p.labelA,
+        labelB: p.labelB,
+        meteoA: fix1(p.meteoA),
+        meteoB: fix1(p.meteoB),
+        meteoDrop: fix1(Math.abs(Number(p.meteoDelta))),
+        meteoThreshold: fix1(Math.abs(Number(p.meteoThreshold))),
+        meteoUnit: p.meteoUnit,
+        totalA: num(p.totalA),
+        totalB: num(p.totalB),
+        /* deltaEta 为正表示电耗下降（手册定义 (E_A - E_B)/E_A） */
+        deltaEta: pct(p.deltaEta),
+        threshold: pct(p.threshold),
+        nodeCount: p.rows.length,
+        /* conditionPassed 挂在 meteorology 下、不在 metrics 里，
+           stepPassed 只拿得到 _m，这里并进去 */
+        _m: { ...m, conditionPassed: p.meteoPassed },
+      };
+    }
     const [pump, chiller] = p.rows;
     return {
       dayA: fmtDate(p.dayA),
@@ -312,6 +336,12 @@ function stepPassed(key, m) {
   /* B 类。要求列写的是合格条件，所以 ✓ 表示达标；
      该规则是"有一项不达标即触发"，结论由 foot 给出。 */
   if (key === "r2") return m.r2Passed === true;
+  /* C02：两条判据均取后端。气象前提用 conditionPassed；
+     Δη 用 passed（false = 触发），与 D05 / C03 同语义。
+     ⚠ 不在前端比大小——手册的 Δη ≥ -5% 与其自身 Δη 定义方向相反，
+     自己比会得出与后端相反的结论。 */
+  if (key === "meteo") return m.conditionPassed === true;
+  if (key === "eta") return m.passed === false;
   /* AA-S1：同样无 passed，方向固定（SR > 阈值触发） */
   if (key === "sr") return Number(m.sr) > Number(m.threshold);
   /* AA-S2：payload 无 passed 字段，方向固定（R > 阈值触发），直接比较 */
@@ -574,6 +604,13 @@ const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
                     <td class="mono">{{ r.dayB }}</td>
                     <td class="mono">{{ r.delta > 0 ? "+" : "" }}{{ r.delta }}</td>
                     <td class="mono">{{ (r.rate * 100).toFixed(1) }}%</td>
+                  </tr>
+                  <tr v-if="Number.isFinite(dayPair.totalA)">
+                    <td><b>合计</b></td>
+                    <td class="mono"><b>{{ dayPair.totalA }}</b></td>
+                    <td class="mono"><b>{{ dayPair.totalB }}</b></td>
+                    <td class="mono"><b>{{ (dayPair.totalB - dayPair.totalA).toFixed(2) }}</b></td>
+                    <td class="mono"><b>{{ (dayPair.totalRate * 100).toFixed(1) }}%</b></td>
                   </tr>
                 </tbody>
               </table>
