@@ -926,3 +926,174 @@ function buildRejectDeltaOption(d) {
     series: lines,
   };
 }
+
+/* ──────────────────────── D 类：等温窗口功率分布 ────────────────────────
+   C06（CR0025）。判据 R = max/min，1.30 < R < 100 触发。
+
+   ⚠ 后端字段名 maxMeanRatio 装的是 max/min，不是 max/mean（三窗口实测
+      max/mean 分别为 1.97/1.38/1.28，与该字段不符）。且 metrics 里没有
+      min，只在 formulaSubstitution 字符串里，故这里从 powerSeries 自算。
+   ⚠ powerSeries 是 96 个 15 分钟读数（3 日 × 8h × 4），不是逐时——
+      resultMd 写「逐时」有误。故序列图横轴用序号 + 分日竖线，不标钟点。
+   两个视图：序列图看极值落在哪，直方图看分布形态。判据只由两个点决定，
+   单看直方图会漏掉这一点。 */
+export function parseDistribution(raw) {
+  if (!raw || raw.type !== "distribution") return null;
+  const p = (raw.powerSeries || []).map(Number).filter(Number.isFinite);
+  if (!p.length) return null;
+
+  const m = raw.metrics || {};
+  const max = Math.max(...p);
+  const min = Math.min(...p);
+  const days = (raw.windowDays || []).length || 1;
+  const perDay = p.length % days === 0 ? p.length / days : 0;
+
+  return {
+    kind: "distribution",
+    days: raw.windowDays || [],
+    perDay,
+    series: p,
+    max,
+    min,
+    iMax: p.indexOf(max),
+    iMin: p.indexOf(min),
+    /* 判据比值。后端字段名不可信，优先用它但以自算为准校验 */
+    ratio: Number.isFinite(Number(m.maxMeanRatio)) ? Number(m.maxMeanRatio) : max / min,
+    ratioThreshold: Number(m.ratioThreshold),
+    ratioUpper: 100,
+    mean: Number(m.mean),
+    std: Number(m.std),
+    cv: Number(m.cv),
+    cvThreshold: Number(m.cvThreshold),
+    n: Number(m.n) || p.length,
+    meteoNote: raw.meteorology?.note || "",
+    buckets: raw.distributionBuckets || [],
+  };
+}
+
+/* 视图一：96 点功率序列 + 分日竖线 + 极值高亮 */
+export function buildDistSeriesOption(d) {
+  const span = d.max - d.min || 1;
+  const dayLines =
+    d.perDay > 0
+      ? d.days.slice(1).map((_, i) => ({
+          xAxis: (i + 1) * d.perDay,
+          lineStyle: { color: COLOR.line, type: "dashed", width: 1 },
+          label: { show: false },
+        }))
+      : [];
+
+  return {
+    grid: { left: 62, right: 92, top: 30, bottom: 44 },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "#fff",
+      borderColor: "rgba(60,110,200,.2)",
+      textStyle: { color: "#0f1d3d", fontSize: 12 },
+      formatter: (ps) => {
+        const i = ps[0].dataIndex;
+        const day = d.perDay ? d.days[Math.floor(i / d.perDay)] : "";
+        return `${day ? day + "<br/>" : ""}第 ${i + 1} 点：<b>${ps[0].value} kW</b>`;
+      },
+    },
+    xAxis: {
+      type: "category",
+      data: d.series.map((_, i) => i + 1),
+      name: d.perDay ? `${d.days.length} 日 × ${d.perDay} 点` : "样本序号",
+      nameLocation: "middle",
+      nameGap: 28,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      boundaryGap: false,
+      axisLine: { lineStyle: { color: COLOR.line } },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 10, interval: 11 },
+    },
+    yAxis: {
+      type: "value",
+      name: "风机功率 (kW)",
+      nameLocation: "middle",
+      nameGap: 44,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      min: Math.max(0, Math.floor(d.min - span * 0.12)),
+      max: Math.ceil(d.max + span * 0.12),
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11 },
+      splitLine: { lineStyle: { color: COLOR.split } },
+    },
+    series: [
+      {
+        type: "line",
+        data: d.series,
+        smooth: false,
+        symbol: "none",
+        lineStyle: { color: "#2f7fff", width: 1.4 },
+        areaStyle: { color: "rgba(47,127,255,.07)" },
+        markLine: dayLines.length ? { silent: true, symbol: "none", data: dayLines } : undefined,
+        markPoint: {
+          symbol: "circle",
+          symbolSize: 10,
+          data: [
+            {
+              coord: [d.iMax, d.max],
+              itemStyle: { color: "#e54e6e" },
+              /* 与结论卡统一到一位小数（原始值如 9.502 会与文案的 9.5 不一致） */
+              label: { formatter: `max ${d.max.toFixed(1)} kW`, position: "top", color: "#e54e6e", fontSize: 10 },
+            },
+            {
+              coord: [d.iMin, d.min],
+              itemStyle: { color: "#7a5cff" },
+              label: { formatter: `min ${d.min.toFixed(1)} kW`, position: "bottom", color: "#7a5cff", fontSize: 10 },
+            },
+          ],
+        },
+      },
+    ],
+  };
+}
+
+/* 视图二：分箱直方图。分箱与计数均由后端给出，前端不重新分箱 */
+export function buildDistHistOption(d) {
+  return {
+    grid: { left: 62, right: 30, top: 30, bottom: 56 },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      backgroundColor: "#fff",
+      borderColor: "rgba(60,110,200,.2)",
+      textStyle: { color: "#0f1d3d", fontSize: 12 },
+      formatter: (ps) => `${ps[0].name} kW<br/><b>${ps[0].value}</b> 个样本`,
+    },
+    xAxis: {
+      type: "category",
+      data: d.buckets.map((b) => b.range),
+      name: "风机功率区间 (kW)",
+      nameLocation: "middle",
+      nameGap: 40,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      axisLine: { lineStyle: { color: COLOR.line } },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 10, rotate: 30 },
+    },
+    yAxis: {
+      type: "value",
+      name: "样本数",
+      nameLocation: "middle",
+      nameGap: 40,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11 },
+      splitLine: { lineStyle: { color: COLOR.split } },
+    },
+    series: [
+      {
+        type: "bar",
+        data: d.buckets.map((b) => b.count),
+        barMaxWidth: 34,
+        itemStyle: { color: "#2f7fff", borderRadius: [3, 3, 0, 0] },
+        label: { show: true, position: "top", color: COLOR.axis, fontSize: 10 },
+      },
+    ],
+  };
+}

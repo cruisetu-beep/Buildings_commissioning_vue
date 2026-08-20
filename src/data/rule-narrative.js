@@ -632,6 +632,75 @@ const C02 = {
   },
 };
 
+/* C06（CR0025）。第五种可视化类型（D 类 distribution）。
+   判据 R = max/min，1.30 < R < 100 触发，上界用于滤传感器故障。
+   ✓/✕ 直接比（无 passed 布尔，方向固定），写触发条件、指向触发。
+
+   ⚠ 后端字段名 maxMeanRatio 装的是 max/min 而非 max/mean，且 metrics 里
+      没有 min（只在 formulaSubstitution 字符串里），min 由 powerSeries 自算。
+   ⚠ powerSeries 是 96 个 15 分钟读数（3 日 × 8h × 4），resultMd 写「逐时」有误，
+      故文案只说「样本」不说「小时」。
+   ⚠ 结论卡只写 max / min 的数值，不写它们落在第几天第几个点——那是与
+      C01「高档时段集中在 2/19 上午」同类的定位句，按约定一交给图去表达。
+   ⚠ payload 里算了 cv / cvThreshold 却未接入判据（实测某窗口 CV 0.1314
+      低于阈值 0.15 却仍触发）。前端在步骤里以 stated 形式如实列出，
+      不参与 ✓/✕，也不暗示它「本应」参与。 */
+const C06 = {
+  narrative: {
+    triggered:
+      "{dateFrom} – {dateTo} 的等温窗口（{meteoNote}）内，日间末端风机功率共 {n} 个样本，" +
+      "最大 <b>{max} kW</b>、最小 <b>{min} kW</b>，两者之比 R = <b>{ratio}</b>。" +
+      "全部样本的均值为 {mean} kW，变异系数 {cv}。",
+    normal:
+      "{dateFrom} – {dateTo} 的等温窗口（{meteoNote}）内，日间末端风机功率共 {n} 个样本，" +
+      "最大 <b>{max} kW</b>、最小 <b>{min} kW</b>，两者之比 R = <b>{ratio}</b>，" +
+      "未落入 {ratioThreshold} ~ {ratioUpper} 的触发区间。",
+  },
+  title: { triggered: "同温窗口内风机功率极差过大", normal: "同温窗口内风机功率离散度正常" },
+  steps: [
+    {
+      kind: "stated",
+      what: "取数据",
+      sub: "{dateFrom} – {dateTo} 共 {dayCount} 天，等温窗口（{meteoNote}）日间 09:00–17:00 的全空气机组与新风机组功率合计，{n} 个样本",
+      val: "最大 {max} kW · 最小 {min} kW",
+      req: "—",
+    },
+    {
+      kind: "stated",
+      what: "样本离散情况",
+      sub: "均值、标准差与变异系数（后端算出但未接入本规则判据）",
+      val: "μ {mean} kW · σ {std} · CV {cv}",
+      req: "—",
+    },
+    {
+      kind: "test",
+      what: "离散比 R = max / min",
+      sub: "同温窗口内最大功率与最小功率之比，上界用于滤除传感器故障",
+      val: "{ratio}",
+      req: "{ratioThreshold} ~ {ratioUpper}",
+      key: "ratio",
+    },
+  ],
+  foot: {
+    triggered: "判据满足 → 判定为 <b>目标调适</b>",
+    normal: "判据未满足 → 判定为 <b>正常</b>",
+  },
+  /* 手册 C06「物理原理」+「关键参数工程学依据」原文 */
+  causes: [
+    "现场存在严重的风机无序手工开停",
+    "末端风阀控制链路震荡缺陷，阀门在同一外负荷下反复大幅调节",
+    "先排除传感器偶发故障与漂移——手册要求剔除后再判定为控制失控",
+  ],
+  readHint: {
+    seq:
+      "横轴是按时间顺序排列的全部样本，竖虚线分隔各天。红点是最大值、紫点是最小值，判据 R 就是这两点之比——" +
+      "其余样本不参与计算，所以极值落在序列的什么位置值得留意。",
+    hist:
+      "每根柱子是一个功率区间内的样本个数，柱形越分散说明同温条件下风机功率波动越大。" +
+      "判据只取最左与最右两端的极值，不看中间的形状。",
+  },
+};
+
 /* 已填写的规则；未填写的返回 null，页面据此隐藏叙述层但保留图表 */
 const NARRATIVES = {
   C01,
@@ -654,6 +723,8 @@ const NARRATIVES = {
   CR0031: AA_S1,
   C02,
   CR0019: C02,
+  C06,
+  CR0025: C06,
 };
 
 /* 后端 ruleCode 可能带前后缀或大小写差异，做一次归一化再匹配 */

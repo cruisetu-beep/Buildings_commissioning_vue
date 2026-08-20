@@ -22,6 +22,9 @@ import {
   buildRegressionOption,
   parseDayPair,
   buildDayPairOption,
+  parseDistribution,
+  buildDistSeriesOption,
+  buildDistHistOption,
 } from "../../../data/viz-chart-options-v2.js";
 
 const props = defineProps({
@@ -84,7 +87,12 @@ const cluster = computed(() => (vizKind.value === "clustering" ? parseClustering
 const schedule = computed(() => (vizKind.value === "schedule" ? parseSchedule(rawJson.value) : null));
 const regression = computed(() => (vizKind.value === "regression" ? parseRegression(rawJson.value) : null));
 const dayPair = computed(() => (vizKind.value === "dayPair" ? parseDayPair(rawJson.value) : null));
-const hasViz = computed(() => !!(cluster.value || schedule.value || regression.value || dayPair.value));
+const distribution = computed(() =>
+  vizKind.value === "distribution" ? parseDistribution(rawJson.value) : null
+);
+const hasViz = computed(
+  () => !!(cluster.value || schedule.value || regression.value || dayPair.value || distribution.value)
+);
 
 const VIEWS = {
   clustering: [
@@ -103,6 +111,12 @@ const VIEWS = {
   dayPair: [
     /* C03 看涨幅、C02 看降幅，用中性词覆盖两者 */
     { k: "slope", label: "变化对比" },
+    { k: "data", label: "数据" },
+  ],
+  /* 判据只由 max、min 两个点决定，只看直方图会漏掉极值落在哪，故两个图 */
+  distribution: [
+    { k: "seq", label: "功率序列" },
+    { k: "hist", label: "分布" },
     { k: "data", label: "数据" },
   ],
 };
@@ -249,6 +263,26 @@ const vals = computed(() => {
       _m: m,
     };
   }
+  if (distribution.value) {
+    const q = distribution.value;
+    return {
+      dayCount: q.days.length,
+      dateFrom: fmtDate(q.days[0]),
+      dateTo: fmtDate(q.days[q.days.length - 1]),
+      meteoNote: q.meteoNote,
+      n: q.n,
+      max: fix1(q.max),
+      min: fix1(q.min),
+      mean: fix1(q.mean),
+      std: fix1(q.std),
+      cv: pct(q.cv),
+      cvThreshold: pct(q.cvThreshold),
+      ratio: Number(q.ratio).toFixed(2),
+      ratioThreshold: Number(q.ratioThreshold).toFixed(2),
+      ratioUpper: q.ratioUpper,
+      _m: m,
+    };
+  }
   if (dayPair.value) {
     const p = dayPair.value;
     /* C02（CR0019）：散热侧合计的相对变化率，节点数不定 */
@@ -348,6 +382,12 @@ function stepPassed(key, m) {
      自己比会得出与后端相反的结论。 */
   if (key === "meteo") return m.conditionPassed === true;
   if (key === "eta") return m.passed === false;
+  /* C06：双边判据 1.30 < R < 100，上界用于滤传感器故障。
+     后端字段名 maxMeanRatio 装的是 max/min（见 parseDistribution 注释）。 */
+  if (key === "ratio") {
+    const r = Number(m.maxMeanRatio);
+    return r > Number(m.ratioThreshold) && r < 100;
+  }
   /* AA-S1：同样无 passed，方向固定（SR > 阈值触发） */
   if (key === "sr") return Number(m.sr) > Number(m.threshold);
   if (key === "slope") return m.slopePassed === true;
@@ -408,6 +448,10 @@ function render() {
     option = buildRegressionOption(regression.value);
   } else if (dayPair.value) {
     option = buildDayPairOption(dayPair.value);
+  } else if (distribution.value) {
+    option = view.value === "hist"
+      ? buildDistHistOption(distribution.value)
+      : buildDistSeriesOption(distribution.value);
   }
   if (option) chart.setOption(option, true);
 }
@@ -589,6 +633,24 @@ const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
                 </tbody>
               </table>
             </div>
+            <!-- D 类：等温窗口功率分布 -->
+            <div v-if="view === 'data' && distribution" class="v2-tblwrap">
+              <table class="v2-dt">
+                <thead>
+                  <tr><th>指标</th><th>值</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>样本数 n</td><td class="mono">{{ distribution.n }}</td></tr>
+                  <tr><td>最大功率 max</td><td class="mono">{{ distribution.max }} kW</td></tr>
+                  <tr><td>最小功率 min</td><td class="mono">{{ distribution.min }} kW</td></tr>
+                  <tr><td>离散比 max/min</td><td class="mono">{{ Number(distribution.ratio).toFixed(4) }}</td></tr>
+                  <tr><td>均值 μ</td><td class="mono">{{ Number(distribution.mean).toFixed(2) }} kW</td></tr>
+                  <tr><td>标准差 σ</td><td class="mono">{{ Number(distribution.std).toFixed(2) }}</td></tr>
+                  <tr><td>变异系数 CV</td><td class="mono">{{ Number(distribution.cv).toFixed(4) }}</td></tr>
+                </tbody>
+              </table>
+            </div>
+
             <!-- C 类：升温日对的两个节点日总电耗 -->
             <div v-if="view === 'data' && dayPair" class="v2-tblwrap">
               <table class="v2-dt">
