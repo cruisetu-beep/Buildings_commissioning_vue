@@ -450,6 +450,21 @@ export function parseSchedule(raw) {
   }
 
   const isNdr = m.algo === "NdrRatio";
+  /* StandbyRatio（AA-S1）。⚠ 夜间段跨零点：算法取「本日 21:00–24:00 +
+     次日 00:00–05:00」，而 hourlyProfiles 只有本日，5/8 的取数不在图上。
+     已用三窗口验证：eDay == Σ(08:00–17:00) × 4 精确成立，而 eNight 扫遍
+     3–24h × 24 起点 × ×1/×4 均无匹配，最近的也差两个数量级于舍入误差。
+     故底纹只标图上真有的两段（方案 A），00:00–05:00 不画——用底纹圈住
+     本日数据却声称是算法取数，等于说假话。
+
+     两条基准线用真实 kW：eDay/10 与 eNight/8 都是逐时积分的 4 倍
+     （第四次复现的 4 倍缺陷），直接显示会大 4 倍。日间均值由逐时自算，
+     夜间均值 = SR × 日间均值——分子分母同缩 4 倍，代数上精确，
+     是单位换算不是复刻判定逻辑（✓/✕ 仍走 stepPassed 比阈值）。 */
+  const isSr = m.algo === "StandbyRatio";
+  const dayAvg = isSr && wd.length >= 18 ? wd.slice(8, 18).reduce((a, b) => a + b, 0) / 10 : NaN;
+  const nightAvg = isSr && Number.isFinite(dayAvg) ? dayAvg * Number(m.sr) : NaN;
+
   return {
     ...base,
     date: w0.dateFrom || "",
@@ -471,16 +486,32 @@ export function parseSchedule(raw) {
     pLow: m.pLow,
     pPeak: m.pPeak,
     ndr: m.ndr,
+    sr: m.sr,
+    dayAvg,
+    nightAvg,
+    /* markArea 在类目轴上「含末类目」（既有 BA-S1 的 ["00:00","04:00"]
+       覆盖 0–4 时即此语义），故 to 写最后一个取数小时，不写时段右边界。
+       label 仍按钟点写，因为第 4 小时结束时刻就是 05:00。 */
     bands: isNdr
       ? [
-          { from: "01:00", to: "05:00", label: "01:00–05:00", fill: "rgba(122,92,255,.07)", text: "#7a5cff" },
-          { from: "11:00", to: "15:00", label: "11:00–15:00", fill: "rgba(245,154,82,.10)", text: "#e08b2f" },
+          { from: "01:00", to: "04:00", label: "01:00–05:00", fill: "rgba(122,92,255,.07)", text: "#7a5cff" },
+          { from: "11:00", to: "14:00", label: "11:00–15:00", fill: "rgba(245,154,82,.10)", text: "#e08b2f" },
+        ]
+      : isSr
+      ? [
+          { from: "08:00", to: "17:00", label: "日间 08:00–18:00", fill: "rgba(245,154,82,.10)", text: "#e08b2f" },
+          { from: "21:00", to: "23:00", label: "夜间(前段)", fill: "rgba(122,92,255,.07)", text: "#7a5cff" },
         ]
       : [],
     marks: isNdr
       ? [
           { y: m.pLow, label: `深夜平均 ${m.pLow} kW`, color: "#7a5cff" },
           { y: m.pPeak, label: `白天高峰平均 ${m.pPeak} kW`, color: "#e54e6e" },
+        ]
+      : isSr
+      ? [
+          { y: nightAvg, label: `夜间平均 ${nightAvg.toFixed(2)} kW`, color: "#7a5cff" },
+          { y: dayAvg, label: `日间平均 ${dayAvg.toFixed(2)} kW`, color: "#e54e6e" },
         ]
       : [],
   };

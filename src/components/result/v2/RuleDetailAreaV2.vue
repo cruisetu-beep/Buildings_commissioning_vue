@@ -150,6 +150,22 @@ const vals = computed(() => {
     const d = schedule.value;
     /* E 类单曲线形态（BA-S1 等夜间时段规则） */
     if (d.mode === "single") {
+      /* StandbyRatio（AA-S1）：夜间段跨零点，5/8 取数不在图上；
+         eDay/10、eNight/8 均为逐时积分的 4 倍，一律不显示，
+         改用 parseSchedule 换算出的真实 kW */
+      if (d.algo === "StandbyRatio") {
+        return {
+          date: fmtDate(d.date),
+          selectionReason: d.selectionReason,
+          dayAvg: fix1(d.dayAvg),
+          nightAvg: fix1(d.nightAvg),
+          sr: pct(d.sr),
+          threshold: pct(d.threshold),
+          dayMin: num(d.dayMin),
+          dayMax: num(d.dayMax),
+          _m: m,
+        };
+      }
       /* NdrRatio（BC-S1）：两个时段均值之比，没有 pMid / pMax */
       if (d.algo === "NdrRatio") {
         return {
@@ -296,6 +312,8 @@ function stepPassed(key, m) {
   /* B 类。要求列写的是合格条件，所以 ✓ 表示达标；
      该规则是"有一项不达标即触发"，结论由 foot 给出。 */
   if (key === "r2") return m.r2Passed === true;
+  /* AA-S1：同样无 passed，方向固定（SR > 阈值触发） */
+  if (key === "sr") return Number(m.sr) > Number(m.threshold);
   /* AA-S2：payload 无 passed 字段，方向固定（R > 阈值触发），直接比较 */
   if (key === "residual") return Number(m.residual) > Number(m.threshold);
   if (key === "slope") return m.slopePassed === true;
@@ -346,7 +364,11 @@ function render() {
        不是空调系统总电耗，纵轴名不能沿用默认值 */
     option = buildScheduleOption(
       schedule.value,
-      schedule.value.algo === "NdrRatio" ? "冷冻泵 + 冷却泵功率 (kW)" : undefined
+      schedule.value.algo === "NdrRatio"
+        ? "冷冻泵 + 冷却泵功率 (kW)"
+        : schedule.value.algo === "StandbyRatio"
+        ? "冷冻泵、冷却泵与全空气机组功率 (kW)"
+        : undefined
     );
   } else if (regression.value) {
     option = buildRegressionOption(regression.value);
