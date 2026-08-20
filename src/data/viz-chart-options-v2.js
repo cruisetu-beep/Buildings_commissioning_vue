@@ -944,9 +944,16 @@ function buildRejectDeltaOption(d) {
 /* ──────────────────────── D 类：等温窗口功率分布 ────────────────────────
    C06（CR0025）。判据 R = max/min，1.30 < R < 100 触发。
 
-   ⚠ 后端字段名 maxMeanRatio 装的是 max/min，不是 max/mean（三窗口实测
-      max/mean 分别为 1.97/1.38/1.28，与该字段不符）。且 metrics 里没有
-      min，只在 formulaSubstitution 字符串里，故这里从 powerSeries 自算。
+   ⚠ D 类承载两条判据完全不同的规则，而 metrics 的字段名逐个相同，
+      payload 里没有任何字段声明属于哪套（E 类和 C 类都有 metrics.algo，
+      D 类没有）。只能按 raw.ruleId 写死分流，已挂问题清单要后端补 algo：
+        CR0025 (C06)  maxMeanRatio 装的是 max/min，1.30 < R < 100 触发
+                      （实测 max/mean 为 1.97/1.38/1.28，与该字段不符）
+        CR0024 (C04)  maxMeanRatio 装的是 max/mean，CV < 0.15 且 R < 1.20 触发
+      C04 实测序列恒为常数，max/mean 与 max/min 都等于 1，无法由数据反证，
+      故按后端自己的声明（resultMd 与 thresholdValue）标注。
+      前端从不重算该值、只显示后端给的数，公式歧义仅影响标签文字。
+  ⚠ C06 的 metrics 里没有 min，只在 formulaSubstitution 字符串里，故自算。
    ⚠ powerSeries 是 96 个 15 分钟读数（3 日 × 8h × 4），不是逐时——
       resultMd 写「逐时」有误。故序列图横轴用序号 + 分日竖线，不标钟点。
    两个视图：序列图看极值落在哪，直方图看分布形态。判据只由两个点决定，
@@ -961,9 +968,13 @@ export function parseDistribution(raw) {
   const min = Math.min(...p);
   const days = (raw.windowDays || []).length || 1;
   const perDay = p.length % days === 0 ? p.length / days : 0;
+  /* C04 实测两栋楼六个窗口的序列全为常数（0.6 / 0.1），扁平是主形态而非边界 */
+  const flat = max === min;
 
   return {
     kind: "distribution",
+    algo: String(raw.ruleId) === "CR0024" ? "Flatness" : "MaxMinRatio",
+    flat,
     days: raw.windowDays || [],
     perDay,
     series: p,
@@ -981,13 +992,25 @@ export function parseDistribution(raw) {
     cvThreshold: Number(m.cvThreshold),
     n: Number(m.n) || p.length,
     meteoNote: raw.meteorology?.note || "",
+    /* C04 的选窗前提是湿球日极差；无 conditionPassed 布尔，方向固定 */
+    meteoRange: raw.meteorology?.dailyRange,
+    meteoRangeThreshold: raw.meteorology?.threshold,
+    meteoUnit: raw.meteorology?.unit || "",
     buckets: raw.distributionBuckets || [],
   };
 }
 
 /* 视图一：96 点功率序列 + 分日竖线 + 极值高亮 */
 export function buildDistSeriesOption(d) {
-  const span = d.max - d.min || 1;
+  /* 常数序列（C04 主形态）max-min == 0，纵轴按均值上下各留 15% 直接定界；
+     且 0.1 kW 这种量级不能按整数取整，否则上下界会取整到同一个值 */
+  const pad = d.flat ? 0 : (d.max - d.min) * 0.12;
+  const lo = d.flat ? Math.abs(d.mean) * 0.85 : d.min - pad;
+  const hi = d.flat ? Math.abs(d.mean) * 1.15 : d.max + pad;
+  /* 小量级保留两位小数，大量级取整 */
+  const small = Math.abs(hi) < 10;
+  const floorTo = (v) => (small ? Math.floor(v * 100) / 100 : Math.floor(v));
+  const ceilTo = (v) => (small ? Math.ceil(v * 100) / 100 : Math.ceil(v));
   const dayLines =
     d.perDay > 0
       ? d.days.slice(1).map((_, i) => ({
@@ -1028,8 +1051,8 @@ export function buildDistSeriesOption(d) {
       nameLocation: "middle",
       nameGap: 44,
       nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
-      min: Math.max(0, Math.floor(d.min - span * 0.12)),
-      max: Math.ceil(d.max + span * 0.12),
+      min: floorTo(Math.max(0, lo)),
+      max: ceilTo(hi),
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: { color: COLOR.axis, fontSize: 11 },
@@ -1043,8 +1066,29 @@ export function buildDistSeriesOption(d) {
         symbol: "none",
         lineStyle: { color: "#2f7fff", width: 1.4 },
         areaStyle: { color: "rgba(47,127,255,.07)" },
-        markLine: dayLines.length ? { silent: true, symbol: "none", data: dayLines } : undefined,
-        markPoint: {
+        markLine:
+          d.flat || dayLines.length
+            ? {
+                silent: true,
+                symbol: "none",
+                data: d.flat
+                  ? [
+                      {
+                        yAxis: d.mean,
+                        lineStyle: { color: "#e54e6e", type: "dashed", width: 1 },
+                        label: {
+                          formatter: `${d.n} 个样本全部等于 ${d.mean} kW`,
+                          color: "#e54e6e",
+                          fontSize: 10,
+                          position: "insideEndTop",
+                        },
+                      },
+                    ]
+                  : dayLines,
+              }
+            : undefined,
+        /* 常数序列时 max 与 min 落在同一点，两个标记会糊在一起，改用上面那条均值线 */
+        markPoint: d.flat ? undefined : {
           symbol: "circle",
           symbolSize: 10,
           data: [

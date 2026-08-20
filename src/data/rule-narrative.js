@@ -769,6 +769,86 @@ const C07 = {
   },
 };
 
+/* C04（CR0024）。与 C06 同为 D 类 distribution，但**判据方向相反**：
+   C06 比值大才触发（离散度过大），C04 是 CV 与比值都小才触发（毫无波动）。
+   payload 的 metrics 字段名两条规则完全相同、且没有 algo 声明，
+   解析器只能按 raw.ruleId 写死分流，已挂问题清单。
+
+   ⚠ 实测两栋楼六个窗口的 powerSeries 全为常数（A005 恒 0.6 kW、
+      A012 恒 0.1 kW），CV 与 std 都是精确的零。而 CV=0、R=1.0 对**任何**
+      恒定读数都成立——真工频风机、待机功耗、坏掉的表三者不可区分。
+      0.1 kW 更不可能是塔风机（常见 5.5–22 kW，同项目另一楼 U2A04 日耗
+      262 kWh）。算法取的是「非零」时段，0.1 不是零所以进了序列。
+      按约定照现状实现，文案如实写出样本数与恒定值，读者自行判断。
+
+   ⚠ 「极值均值比」的标注依据是后端自己的声明（resultMd 写
+      R_max_mean = P_max/μ、thresholdValue 写 max/mean<1.2）。常数序列下
+      max/mean 与 max/min 都等于 1，无法由数据反证。前端只显示不重算。
+   ✓/✕ 三条均为直接比较（无 passed 布尔，方向固定），指向触发。 */
+const C04 = {
+  narrative: {
+    triggered:
+      "{dateFrom}（湿球日极差 {meteoRange}{meteoUnit}）冷却塔风机非零运行时段共 {n} 个样本，" +
+      "功率 <b>全部等于 {mean} kW</b>，标准差 {std}、变异系数 <b>{cv}</b>，" +
+      "极值均值比 <b>{ratio}</b>。",
+    normal:
+      "{dateFrom}（湿球日极差 {meteoRange}{meteoUnit}）冷却塔风机非零运行时段共 {n} 个样本，" +
+      "均值 {mean} kW、最大 {max} kW，变异系数 <b>{cv}</b>、极值均值比 <b>{ratio}</b>，" +
+      "未同时低于 {cvThreshold} 与 {ratioThreshold} 的门槛。",
+  },
+  title: { triggered: "冷却塔风机功率全程无波动", normal: "冷却塔风机功率存在调节波动" },
+  steps: [
+    {
+      kind: "test",
+      what: "湿球日波动",
+      sub: "选窗前提：代表日室外湿球温度的日内极差",
+      val: "{meteoRange}{meteoUnit}",
+      req: "≥ {meteoRangeThreshold}{meteoUnit}",
+      key: "meteoRange",
+    },
+    {
+      kind: "stated",
+      what: "取数据",
+      sub: "{dateFrom} 冷却塔（U2A04）非零运行时段的功率序列，{n} 个样本",
+      val: "均值 {mean} kW · 最大 {max} kW · 标准差 {std}",
+      req: "—",
+    },
+    {
+      kind: "test",
+      what: "变异系数 CV",
+      sub: "标准差与均值之比，衡量整个序列的波动程度",
+      val: "{cv}",
+      req: "< {cvThreshold}",
+      key: "cvLow",
+    },
+    {
+      kind: "test",
+      what: "极值均值比",
+      sub: "最大功率与均值之比，衡量是否存在高档运行",
+      val: "{ratio}",
+      req: "< {ratioThreshold}",
+      key: "rMaxMean",
+    },
+  ],
+  foot: {
+    triggered: "两条判据同时满足 → 判定为 <b>目标调适</b>",
+    normal: "判据未同时满足 → 判定为 <b>正常</b>",
+  },
+  /* 手册 C04 原文 */
+  causes: [
+    "冷却塔风机未配置变频器，只能工频启停两档运行",
+    "已配变频器但控制策略未启用，风机长期锁定在固定频率",
+    "先核对冷却塔电表计量范围与量程——判据对恒定读数与无计量不可区分",
+  ],
+  readHint: {
+    seq:
+      "横轴是当日非零运行时段的样本序号。虚线标出全序列的功率水平——" +
+      "湿球温度当天有明显日内波动，若风机随之调节，这条线应当起伏。",
+    hist:
+      "每根柱子是一个功率区间内的样本个数。柱子全部落在同一个区间，说明所有样本挤在一个功率值上。",
+  },
+};
+
 /* 已填写的规则；未填写的返回 null，页面据此隐藏叙述层但保留图表 */
 const NARRATIVES = {
   C01,
@@ -795,6 +875,8 @@ const NARRATIVES = {
   CR0025: C06,
   C07,
   CR0027: C07,
+  C04,
+  CR0024: C04,
 };
 
 /* 后端 ruleCode 可能带前后缀或大小写差异，做一次归一化再匹配 */

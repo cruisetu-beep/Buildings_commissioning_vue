@@ -266,6 +266,12 @@ const vals = computed(() => {
   if (distribution.value) {
     const q = distribution.value;
     return {
+      algo: q.algo,
+      flat: q.flat,
+      /* C04 的选窗前提是湿球日极差，C06 用的是等温窗说明文字 */
+      meteoRange: fix1(q.meteoRange),
+      meteoRangeThreshold: fix1(q.meteoRangeThreshold),
+      meteoUnit: q.meteoUnit,
       dayCount: q.days.length,
       dateFrom: fmtDate(q.days[0]),
       dateTo: fmtDate(q.days[q.days.length - 1]),
@@ -280,7 +286,9 @@ const vals = computed(() => {
       ratio: Number(q.ratio).toFixed(2),
       ratioThreshold: Number(q.ratioThreshold).toFixed(2),
       ratioUpper: q.ratioUpper,
-      _m: m,
+      /* dailyRange / threshold 挂在 meteorology 下、不在 metrics 里，
+         stepPassed 只拿得到 _m，这里并进去（与 C02 的 conditionPassed 同理） */
+      _m: { ...m, dailyRange: q.meteoRange, rangeThreshold: q.meteoRangeThreshold },
     };
   }
   if (dayPair.value) {
@@ -396,6 +404,12 @@ function stepPassed(key, m) {
     const r = Number(m.maxMeanRatio);
     return r > Number(m.ratioThreshold) && r < 100;
   }
+  /* C04：两条判据同为「小于阈值才触发」，方向与 C06 相反；
+     另有选窗前提湿球日极差（无 conditionPassed 布尔，直接比）。
+     三个 key 与 C06 的 ratio 分开，避免同名分支互相遮蔽。 */
+  if (key === "cvLow") return Number(m.cv) < Number(m.cvThreshold);
+  if (key === "rMaxMean") return Number(m.maxMeanRatio) < Number(m.ratioThreshold);
+  if (key === "meteoRange") return Number(m.dailyRange) >= Number(m.rangeThreshold);
   /* AA-S1：同样无 passed，方向固定（SR > 阈值触发） */
   if (key === "sr") return Number(m.sr) > Number(m.threshold);
   if (key === "slope") return m.slopePassed === true;
