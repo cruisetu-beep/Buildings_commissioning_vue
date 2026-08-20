@@ -96,12 +96,11 @@ const distribution = computed(() =>
   vizKind.value === "distribution" ? parseDistribution(rawJson.value) : null
 );
 /* D04 的除零门控窗口：dayB 是 dayA 的副本，判据没算。画日对图等于
-   画一个不存在的对比，故不出图，由 narrative 的 undetermined 分支说明。 */
+   画一个不存在的对比，故**只关图、保留数据表**——数据表如实显示两列
+   数值完全相同，正是「这不是一次真的对比」的直接证据。 */
 const gated = computed(() => !!dayPair.value?.gate);
 const hasViz = computed(
-  () =>
-    !gated.value &&
-    !!(cluster.value || schedule.value || regression.value || dayPair.value || distribution.value)
+  () => !!(cluster.value || schedule.value || regression.value || dayPair.value || distribution.value)
 );
 
 const VIEWS = {
@@ -130,7 +129,11 @@ const VIEWS = {
     { k: "data", label: "数据" },
   ],
 };
-const views = computed(() => VIEWS[vizKind.value] || []);
+/* 门控窗口只留「数据」一个页签：图不画，就不该留一个点了没反应的按钮。
+   下方 watch 会把 view 自动落到 data。 */
+const views = computed(() =>
+  gated.value ? [{ k: "data", label: "数据" }] : VIEWS[vizKind.value] || []
+);
 
 /* ─── 模板取值 ─── */
 const meta = computed(() => getRuleNarrative(props.result?.ruleCode));
@@ -582,7 +585,7 @@ const chartEl = ref(null);
 let chart = null;
 
 function render() {
-  if (!chartEl.value || view.value === "data" || !hasViz.value) return;
+  if (!chartEl.value || view.value === "data" || !hasViz.value || gated.value) return;
   if (!chart) chart = echarts.init(chartEl.value);
   let option = null;
   if (cluster.value) {
