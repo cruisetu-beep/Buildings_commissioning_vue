@@ -462,6 +462,21 @@ export function parseSchedule(raw) {
      夜间均值 = SR × 日间均值——分子分母同缩 4 倍，代数上精确，
      是单位换算不是复刻判定逻辑（✓/✕ 仍走 stepPassed 比阈值）。 */
   const isSr = m.algo === "StandbyRatio";
+  /* Precool（BB-S1）。T_start 由 15 分钟数据识别（实测 05:45 / 06:00 / 09:45），
+     而 hourlyProfiles 是逐时——精确到刻的位置图上表达不了。故不画竖线假装
+     精确，改为把 T_start 所在的那一小时整体底纹标出，标签写后端的精确时刻。
+     已用逐时数据复算：05:00–10:00 段内首个满足 ΔP ≥ 0.20×P_max 的小时
+     与后端时刻所在小时三窗口全部一致。
+     metrics.threshold 是十进制小时（7.5 = 07:30）；温差阈值 3.0℃ 不在
+     payload 里，取自手册原文。 */
+  const isPre = m.algo === "Precool";
+  const startHour = isPre ? parseInt(String(m.start).slice(0, 2), 10) : NaN;
+  const hhmm = (dec) => {
+    if (!Number.isFinite(Number(dec))) return "";
+    const h = Math.floor(Number(dec));
+    const mi = Math.round((Number(dec) - h) * 60);
+    return `${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
+  };
   const dayAvg = isSr && wd.length >= 18 ? wd.slice(8, 18).reduce((a, b) => a + b, 0) / 10 : NaN;
   const nightAvg = isSr && Number.isFinite(dayAvg) ? dayAvg * Number(m.sr) : NaN;
 
@@ -489,6 +504,13 @@ export function parseSchedule(raw) {
     sr: m.sr,
     dayAvg,
     nightAvg,
+    start: m.start,
+    startHour,
+    startLimit: isPre ? hhmm(m.threshold) : "",
+    tdb: m.tdb,
+    tempDiff: isPre ? Math.abs(Number(m.tdb) - 25) : NaN,
+    early: m.early,
+    mild: m.mild,
     /* markArea 在类目轴上「含末类目」（既有 BA-S1 的 ["00:00","04:00"]
        覆盖 0–4 时即此语义），故 to 写最后一个取数小时，不写时段右边界。
        label 仍按钟点写，因为第 4 小时结束时刻就是 05:00。 */
@@ -501,6 +523,19 @@ export function parseSchedule(raw) {
       ? [
           { from: "08:00", to: "17:00", label: "日间 08:00–18:00", fill: "rgba(245,154,82,.10)", text: "#e08b2f" },
           { from: "21:00", to: "23:00", label: "夜间(前段)", fill: "rgba(122,92,255,.07)", text: "#7a5cff" },
+        ]
+      : isPre && Number.isFinite(startHour)
+      ? [
+          /* 诊断窗口 05:00–10:00：含末类目语义，to 写最后一个取数小时 09:00 */
+          { from: "05:00", to: "09:00", label: "诊断窗口 05:00–10:00", fill: "rgba(245,154,82,.09)", text: "#e08b2f" },
+          /* T_start 所在的那一小时，标签给后端的精确时刻 */
+          {
+            from: `${String(startHour).padStart(2, "0")}:00`,
+            to: `${String(startHour).padStart(2, "0")}:00`,
+            label: `启动 ${m.start}`,
+            fill: "rgba(122,92,255,.16)",
+            text: "#7a5cff",
+          },
         ]
       : [],
     marks: isNdr

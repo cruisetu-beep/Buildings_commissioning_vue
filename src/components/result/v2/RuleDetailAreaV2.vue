@@ -181,6 +181,21 @@ const vals = computed(() => {
           _m: m,
         };
       }
+      /* Precool（BB-S1）：启动时刻 + 温差两条判据，均取后端布尔。
+         温差阈值 3.0℃ 不在 payload 里，取自手册原文 */
+      if (d.algo === "Precool") {
+        return {
+          date: fmtDate(d.date),
+          selectionReason: d.selectionReason,
+          start: d.start,
+          startLimit: d.startLimit,
+          tdb: fix1(d.tdb),
+          tempDiff: fix1(d.tempDiff),
+          dayMin: num(d.dayMin),
+          dayMax: num(d.dayMax),
+          _m: m,
+        };
+      }
       /* NdrRatio（BC-S1）：两个时段均值之比，没有 pMid / pMax */
       if (d.algo === "NdrRatio") {
         return {
@@ -410,6 +425,11 @@ function stepPassed(key, m) {
   if (key === "cvLow") return Number(m.cv) < Number(m.cvThreshold);
   if (key === "rMaxMean") return Number(m.maxMeanRatio) < Number(m.ratioThreshold);
   if (key === "meteoRange") return Number(m.dailyRange) >= Number(m.rangeThreshold);
+  /* BB-S1：两条判据均为后端布尔。⚠ resultMd 里第 2 行的 ✅/❌ 实测三窗口
+     错了两个（mild=False 标 ✅、mild=True 标 ❌，且两个 False 窗口标法不一致），
+     判决本身正确（early && mild）。故只信布尔，不看 resultMd 的表 */
+  if (key === "early") return m.early === true;
+  if (key === "mild") return m.mild === true;
   /* AA-S1：同样无 passed，方向固定（SR > 阈值触发） */
   if (key === "sr") return Number(m.sr) > Number(m.threshold);
   if (key === "slope") return m.slopePassed === true;
@@ -464,6 +484,8 @@ function render() {
         ? "冷冻泵 + 冷却泵功率 (kW)"
         : schedule.value.algo === "StandbyRatio"
         ? "冷冻泵、冷却泵与全空气机组功率 (kW)"
+        : schedule.value.algo === "Precool"
+        ? "冷热站、冷冻泵与冷却泵功率 (kW)"
         : undefined
     );
   } else if (regression.value) {

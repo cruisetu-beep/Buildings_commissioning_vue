@@ -849,6 +849,74 @@ const C04 = {
   },
 };
 
+/* BB-S1（CR0036）。⚠ **规则名与实际算法不是一回事**：
+   ruleName 写「商场停业后主机泵下降极小」、thresholdValue 写
+   「关店前后降幅<25%」，但 judgmentStandard / resultMd / metrics.algo
+   全都是清晨预冷判定（Precool）。手册这一节标题是「停业后主机泵功耗下降
+   极小**与过度提早预冷**判定」——两件事合成一条规则，而「数学算式与步骤」
+   只写了预冷那半，停业后降幅那半从来没有算法。
+   本模板按后端实际计算的（预冷）写。**页面头部的规则名来自接口，前端改不了，
+   会显示成另一半**，已挂问题清单。
+
+   ⚠ resultMd 第 2 行的 ✅/❌ 实测三窗口错了两个（mild=False 标 ✅、
+      mild=True 标 ❌，且两个 False 窗口标法还不一致）。判决本身正确
+      （early && mild）。第 ③ 块只取布尔，与第 ④ 块渲染的 resultMd 会打架。
+   ⚠ T_start 是 15 分钟精度、hourlyProfiles 是逐时，图上只标到所在小时。
+   ⚠ 温差阈值 3.0℃ 不在 payload 里，取自手册原文。 */
+const BB_S1 = {
+  narrative: {
+    triggered:
+      "{date}（{selectionReason}）冷源在 <b>{start}</b> 启动，早于 {startLimit}；" +
+      "启动时室外干球温度 {tdb}℃，与商场室内设计基准 25℃ 相差 <b>{tempDiff}℃</b>。" +
+      "当日逐时功率在 {dayMin} – {dayMax} kW 之间。",
+    normal:
+      "{date}（{selectionReason}）冷源在 <b>{start}</b> 启动（门槛 {startLimit}）；" +
+      "启动时室外干球温度 {tdb}℃，与商场室内设计基准 25℃ 相差 <b>{tempDiff}℃</b>。" +
+      "启动过早与温差偏小两项未同时成立。",
+  },
+  title: { triggered: "冷源预冷启动过度超前", normal: "冷源启动时刻未构成过度预冷" },
+  steps: [
+    {
+      kind: "stated",
+      what: "取数据",
+      sub: "典型营业日 {date} 清晨过渡段 05:00–10:00 的功率谱线，以一阶差分 ΔP ≥ 0.20 × P_max 识别冷源启动时刻",
+      val: "T_start {start} · 当日最大 {dayMax} kW",
+      req: "—",
+    },
+    {
+      kind: "test",
+      what: "启动时间",
+      sub: "冷源实际启动时刻，早于门槛即提前量超过 2.5 小时",
+      val: "{start}",
+      req: "< {startLimit}",
+      key: "early",
+    },
+    {
+      kind: "test",
+      what: "室内外温差",
+      sub: "启动时室外干球与商场室内设计基准 25℃ 之差，偏小说明清晨气象负荷极弱",
+      val: "{tempDiff}℃",
+      req: "≤ 3.0℃",
+      key: "mild",
+    },
+  ],
+  foot: {
+    triggered: "两条判据同时满足 → 判定为 <b>目标调适</b>",
+    normal: "判据未同时满足 → 判定为 <b>正常</b>",
+  },
+  /* 手册 BB-S1「重构方案与物理原理」+「关键参数工程学依据」原文 */
+  causes: [
+    "清晨气象负荷极弱时盲目提早 3~4 小时开启大功率冷源满载空跑",
+    "预冷启动提前量未与室外干球温度动态耦合，按固定时间表启动",
+    "商场大空间新风机组设计功率通常几十到上百千瓦，合理预冷提前量约 2 小时；超过 2.5 小时属控制策略过度冗余",
+  ],
+  readHint: {
+    day:
+      "浅色底纹是算法的诊断窗口（清晨 05:00–10:00），深色的一小时是冷源启动所在的小时。" +
+      "启动时刻由 15 分钟数据识别、精确到刻，本图为逐时曲线，故只标到小时。",
+  },
+};
+
 /* 已填写的规则；未填写的返回 null，页面据此隐藏叙述层但保留图表 */
 const NARRATIVES = {
   C01,
@@ -877,6 +945,8 @@ const NARRATIVES = {
   CR0027: C07,
   C04,
   CR0024: C04,
+  "BB-S1": BB_S1,
+  CR0036: BB_S1,
 };
 
 /* 后端 ruleCode 可能带前后缀或大小写差异，做一次归一化再匹配 */
