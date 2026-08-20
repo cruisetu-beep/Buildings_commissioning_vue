@@ -1,0 +1,17 @@
+{
+  "ruleCode": "D04",
+  "buildId": "310101A013",
+  "note": "真实后端 payload，勿手改数值",
+  "window": {
+    "cxRuleId": "CR0023",
+    "analysisYear": 2025,
+    "windowGroup": 1,
+    "calcResult": {
+      "buildId": "310101A013",
+      "cxRuleId": "CR0023",
+      "category": "正常",
+      "visualType": "C",
+      "resultJson": "{\"type\": \"dayPair\", \"ruleId\": \"CR0023\", \"windowDays\": [\"2025-04-01\", \"2025-08-09\"], \"dayA\": {\"date\": \"2025-04-01\", \"label\": \"过渡季\"}, \"dayB\": {\"date\": \"2025-08-09\", \"label\": \"盛夏\"}, \"meteorology\": {\"variable\": \"enthalpy\", \"note\": \"4月 h_out<45\", \"unit\": \"kJ/kg\"}, \"energyBreakdown\": {\"series\": [{\"name\": \"U2A00 冷机\", \"dayA\": 25, \"dayB\": 725, \"delta\": -700}, {\"name\": \"U2B01+U2B02 风机\", \"dayA\": 4697.2, \"dayB\": 3504.8, \"delta\": 1192.4}], \"totalDayA\": 4722.2, \"totalDayB\": 4229.8, \"unit\": \"kWh\"}, \"metrics\": {\"powerRatio\": 0.0345, \"threshold\": 0.8, \"rFanChiller\": 187.888, \"passed\": true}, \"category\": \"正常\"}"
+    }
+  }
+}

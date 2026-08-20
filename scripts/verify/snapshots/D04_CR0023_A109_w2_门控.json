@@ -1,0 +1,74 @@
+{
+  "vals": {
+    "dayA": "04月13日",
+    "dayB": "04月13日",
+    "labelA": "过渡季",
+    "labelB": "过渡季",
+    "chillerA": 0,
+    "chillerB": 0,
+    "fanA": 186.45,
+    "fanB": 186.45,
+    "totalA": 186.45,
+    "totalB": 186.45,
+    "powerRatio": "—",
+    "thresholdAbs": "—",
+    "rFan": "—",
+    "meteoNote": "除零门控",
+    "_gate": "zeroDivisionPass",
+    "_m": {
+      "gate": "zeroDivisionPass",
+      "passed": true
+    }
+  },
+  "steps": [
+    [
+      "pr",
+      null
+    ]
+  ],
+  "texts": {
+    "narrative": "本窗口<b>未做判定</b>。冷机日电耗为 0，比值的分母为零，后端以除零门控直接放行（<code>gate = zeroDivisionPass</code>），并未计算过渡季与盛夏的冷机功耗比。同时该窗口的两日是<b>同一天</b>（04月13日），盛夏对照日未取到，能耗两列为相同数值，故不出图。风机日电耗 186.45 kWh 可在下方原始数据中查看。",
+    "title": "未做判定：分母为零，除零门控放行",
+    "foot": "判据未计算 → 后端以<b>除零门控</b>放行，本窗口不构成合格结论",
+    "steps[0].sub": "冷热站 U2A00 的日累计电耗，过渡季与盛夏各取一日",
+    "steps[0].val": "过渡季 0 kWh · 过渡季 0 kWh",
+    "steps[0].req": "—",
+    "steps[1].sub": "过渡季 ÷ 盛夏。阈值随业态编码变，payload 未带编码，此处显示实际取值",
+    "steps[1].val": "—",
+    "steps[1].req": "≥ —",
+    "steps[2].sub": "(U2B01 + U2B02) ÷ U2A00，后端算出但不在判定准则内",
+    "steps[2].val": "—",
+    "steps[2].req": "—",
+    "readHint.slope": "纵轴是冷机日电耗的绝对值（kWh）。图上只画冷机——判据只由它的两日值决定，风机不参与（两者量级差 149~188 倍，同轴会把冷机压成贴底的一条线），风机数值在「数据」页签里。留意盛夏那一天的绝对值：它是比值的分母，若该日冷机本就接近零，比值会被抬高到与过渡季控制水平无关的量级。"
+  },
+  "chart": {
+    "yAxis": "日电耗 (kWh)",
+    "min": 0,
+    "max": 1,
+    "series": [
+      {
+        "name": "U2A00 冷机",
+        "data": [
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "rows": [
+    {
+      "name": "U2A00 冷机",
+      "dayA": 0,
+      "dayB": 0,
+      "delta": 0,
+      "rate": null
+    },
+    {
+      "name": "U2B01+U2B02 风机",
+      "dayA": 186.45,
+      "dayB": 186.45,
+      "delta": 0,
+      "rate": 0
+    }
+  ]
+}

@@ -57,6 +57,11 @@ function winCategory(w) {
 function isWinTriggered(w) {
   return winCategory(w) === "目标调适";
 }
+/* D04 的除零门控窗口 category 也是「正常」，但含义是「判据没算、放行」，
+   不是「检查过、合格」。窗口条上不能给绿色 ✓，复用「待核查」那一态。 */
+function winGated(w) {
+  return !!parseJson(w)?.metrics?.gate;
+}
 
 const trigCount = computed(() => windows.value.filter(isWinTriggered).length);
 const winSummary = computed(() =>
@@ -90,8 +95,13 @@ const dayPair = computed(() => (vizKind.value === "dayPair" ? parseDayPair(rawJs
 const distribution = computed(() =>
   vizKind.value === "distribution" ? parseDistribution(rawJson.value) : null
 );
+/* D04 的除零门控窗口：dayB 是 dayA 的副本，判据没算。画日对图等于
+   画一个不存在的对比，故不出图，由 narrative 的 undetermined 分支说明。 */
+const gated = computed(() => !!dayPair.value?.gate);
 const hasViz = computed(
-  () => !!(cluster.value || schedule.value || regression.value || dayPair.value || distribution.value)
+  () =>
+    !gated.value &&
+    !!(cluster.value || schedule.value || regression.value || dayPair.value || distribution.value)
 );
 
 const VIEWS = {
@@ -359,6 +369,30 @@ const vals = computed(() => {
         _m: { ...m, conditionPassed: p.meteoPassed },
       };
     }
+    /* D04（TransSeasonRatio）：判据只看冷机两日值，且有除零门控形态。 */
+    if (p.algo === "TransSeasonRatio") {
+      const ch = p.chartRows?.[0] || p.rows[0] || {};
+      const fan = p.rows.find((r) => r !== ch) || {};
+      return {
+        dayA: fmtDate(p.dayA),
+        dayB: fmtDate(p.dayB),
+        labelA: p.labelA,
+        labelB: p.labelB,
+        chillerA: num(ch.dayA),
+        chillerB: num(ch.dayB),
+        fanA: num(fan.dayA),
+        fanB: num(fan.dayB),
+        totalA: num(p.totalA),
+        totalB: num(p.totalB),
+        powerRatio: pct(p.powerRatio),
+        thresholdAbs: pct(Math.abs(Number(p.threshold))),
+        rFan: num(p.rFanChiller),
+        meteoNote: p.meteoNote,
+        /* 驱动组件的 undetermined 第三分支；其余规则的 vals 不带这个键 */
+        _gate: p.gate,
+        _m: m,
+      };
+    }
     /* C02（RejectDelta）与 C07（HeatDelta）结构相同：气象数值 + N 节点 + 合计。
        差别只在判据字段名与符号方向，vals 共用，文案各写各的。 */
     if (p.algo === "RejectDelta" || p.algo === "HeatDelta") {
@@ -412,14 +446,34 @@ const vals = computed(() => {
 
 const triggered = computed(() => isWinTriggered(activeWindow.value));
 const activeCategory = computed(() => winCategory(activeWindow.value));
+
+/* 第三态「未判定」：后端跑了但判据没算出来（D04 的除零门控）。
+   category 仍是「正常」，而 triggered/normal 两分支都会把它说成
+   「已检查」——前者说触发、后者说未落入区间，两句都是假的。
+   由 vals 里的 _gate 驱动：其余规则的 vals 不带这个键，
+   narrative.undetermined 也不存在，行为完全不变。 */
+const undetermined = computed(() => !!vals.value?._gate && !!meta.value?.narrative?.undetermined);
+/* 分支选择：触发 > 未判定 > 正常 */
+const branch = computed(() =>
+  triggered.value ? "triggered" : undetermined.value ? "undetermined" : "normal"
+);
+const pick = (o) => (o ? o[branch.value] || o.normal : "");
+
 /* t 触发 / n 正常 / o 其他（待核查、配置错误、数据异常、虚拟预测愈合…） */
 const tone = computed(() =>
-  activeCategory.value === "目标调适" ? "t" : activeCategory.value === "正常" ? "n" : "o"
+  activeCategory.value === "目标调适"
+    ? "t"
+    : /* 未判定不给绿色：与窗口条上的标记保持一致 */
+    undetermined.value
+    ? "o"
+    : activeCategory.value === "正常"
+    ? "n"
+    : "o"
 );
 
 const verdictText = computed(() => {
   if (!meta.value || !vals.value) return "";
-  const tpl = triggered.value ? meta.value.narrative.triggered : meta.value.narrative.normal;
+  const tpl = pick(meta.value.narrative);
   return fillTemplate(tpl, vals.value);
 });
 /* title 与 readHint 原本不走 fillTemplate，AA-S2/BA-S2 需要 {holName}
@@ -427,7 +481,7 @@ const verdictText = computed(() => {
    均无占位符，改动对它们零影响。 */
 const verdictTitle = computed(() => {
   if (!meta.value) return "";
-  const tpl = triggered.value ? meta.value.title.triggered : meta.value.title.normal;
+  const tpl = pick(meta.value.title);
   return vals.value ? fillTemplate(tpl, vals.value) : tpl;
 });
 
@@ -493,6 +547,10 @@ function stepPassed(key, m) {
      两栋楼逐窗口核对过：passed=false ↔ category=目标调适、
      passed=true ↔ category=正常。照约定取布尔，不在前端比大小。 */
   if (key === "dm") return m.passed === false;
+  /* D04：powerRatio ≥ 阈值触发。除零门控形态下判据根本没算，
+     此时 passed=true 的意思是「放行」不是「合格」，必须返回 null
+     让判据表显示「—」而非 ✕，否则等于宣称「已检查、不满足」。 */
+  if (key === "pr") return m.gate ? null : m.passed === false;
   return null;
 }
 const steps = computed(() => {
@@ -629,9 +687,9 @@ const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
           >
             <span
               class="v2-win-mark"
-              :class="isWinTriggered(w) ? 't' : winCategory(w) === '正常' ? 'n' : 'o'"
-              :title="winCategory(w)"
-            >{{ isWinTriggered(w) ? "!" : winCategory(w) === "正常" ? "✓" : "?" }}</span>
+              :class="isWinTriggered(w) ? 't' : winGated(w) ? 'o' : winCategory(w) === '正常' ? 'n' : 'o'"
+              :title="winGated(w) ? '判据未计算（除零门控放行）' : winCategory(w)"
+            >{{ isWinTriggered(w) ? "!" : winGated(w) ? "?" : winCategory(w) === "正常" ? "✓" : "?" }}</span>
             <span>
               <span class="wn">窗口 {{ i + 1 }}</span>
               <span class="wd mono">{{ w.label || `${w.dateFrom} – ${w.dateTo}` }}</span>
@@ -829,13 +887,15 @@ const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
                 <td class="what">{{ s.what }}<small>{{ s.sub }}</small></td>
                 <td class="val">{{ s.val }}</td>
                 <td class="req mono">{{ s.req }}</td>
-                <td class="mk" :class="s.stated ? 'na' : s.ok ? 'pass' : 'fail'">
-                  {{ s.stated ? "—" : s.ok ? "✓" : "✕" }}
+                <!-- ok 为 null 表示「未判定」（判据没算，如 D04 除零门控），
+                     不能和「不满足」共用 ✕：两者含义完全不同。 -->
+                <td class="mk" :class="s.stated || s.ok === null ? 'na' : s.ok ? 'pass' : 'fail'">
+                  {{ s.stated || s.ok === null ? "—" : s.ok ? "✓" : "✕" }}
                 </td>
               </tr>
             </tbody>
           </table>
-          <div class="v2-steps-foot" :class="{ n: !triggered }" v-html="triggered ? meta.foot.triggered : meta.foot.normal" />
+          <div class="v2-steps-foot" :class="{ n: !triggered }" v-html="pick(meta.foot)" />
         </div>
       </div>
 

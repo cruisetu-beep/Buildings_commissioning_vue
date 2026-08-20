@@ -35,8 +35,17 @@ for (const file of fs.readdirSync(FIX).filter((f) => f.endsWith(".json")).sort()
   const vals = computeVals(raw, win);
   if (!vals) { fail(file, "vals 为 null——vizKind 没有对应分支"); continue; }
 
+  /* 第三态「未判定」。这段分支规则与 RuleDetailAreaV2.vue 的 branch computed
+     必须一致——那边是 computed 不便切片，此处镜像，改动时两处同步。
+     不变量：vals 给了 _gate，模板就必须有 undetermined 分支。 */
+  const und = !!vals._gate && !!meta.narrative?.undetermined;
+  if (vals._gate && !meta.narrative?.undetermined) {
+    fail(file, "vals 带 _gate 但模板没有 undetermined 分支——会退回 normal，把「未判定」说成「已检查」");
+  }
+  if (und && triggered) fail(file, "既是门控又是触发，语义冲突");
+
   /* ② 模板渲染：所有占位符都被填上，且没有渲染出 undefined / NaN */
-  const branch = triggered ? "triggered" : "normal";
+  const branch = triggered ? "triggered" : und ? "undetermined" : "normal";
   const texts = [
     ["narrative", meta.narrative?.[branch]],
     ["title", meta.title?.[branch]],
@@ -60,11 +69,22 @@ for (const file of fs.readdirSync(FIX).filter((f) => f.endsWith(".json")).sort()
   if (!keyed.length) fail(file, "没有任何带 key 的判据步骤");
   const results = keyed.map((s) => [s.key, sp(s.key, vals._m || raw.metrics || {})]);
   for (const [k, v] of results) {
-    if (v === null) fail(file, `stepPassed("${k}") 返回 null——key 没接上`);
+    /* null 有两种含义：未判定（合法，仅限门控窗口）与 key 没接上（缺陷）。
+       非门控窗口出现 null 一律算缺陷——judgment 表会把它渲染成「—」，
+       与「已检查」肉眼不可分。 */
+    if (v === null && !und) fail(file, `stepPassed("${k}") 返回 null——key 没接上`);
   }
-  const allTrue = results.every(([, v]) => v === true);
-  if (allTrue !== triggered) {
-    fail(file, `判定不一致：category=${win.calcResult.category} 但判据为 ${JSON.stringify(results)}`);
+  if (und) {
+    /* 门控窗口：判据必须全部「未判定」，不得给出 true/false 的结论 */
+    const decided = results.filter(([, v]) => v !== null);
+    if (decided.length) {
+      fail(file, `门控窗口却给出了判据结论：${JSON.stringify(decided)}`);
+    }
+  } else {
+    const allTrue = results.every(([, v]) => v === true);
+    if (allTrue !== triggered) {
+      fail(file, `判定不一致：category=${win.calcResult.category} 但判据为 ${JSON.stringify(results)}`);
+    }
   }
 
   /* ④ 快照：解析结果 + 图上真正画出的线，逐值比对 */
@@ -76,11 +96,16 @@ for (const file of fs.readdirSync(FIX).filter((f) => f.endsWith(".json")).sort()
     texts: Object.fromEntries(texts.filter(([, t]) => t).map(([w, t]) => [w, fillTemplate(t, vals)])),
   };
   if (raw.type === "dayPair") {
-    const opt = buildDayPairOption(parseDayPair(raw));
+    const d = parseDayPair(raw);
+    const opt = buildDayPairOption(d);
     snapObj.chart = {
       yAxis: opt.yAxis?.name, min: opt.yAxis?.min, max: opt.yAxis?.max,
       series: opt.series?.map((s) => ({ name: s.name, data: s.data })),
     };
+    /* rows 也要进快照：数据页签直接渲染 rows[].delta / rate，
+       而这两个字段既不在 vals 里也不在图上，只靠上面三项抓不到
+       （实测把 D04 的 delta 改回后端原值——符号是反的——全部照样通过）。 */
+    snapObj.rows = d.rows?.map((r) => ({ name: r.name, dayA: r.dayA, dayB: r.dayB, delta: r.delta, rate: r.rate }));
   }
   const snapFile = path.join(SNAP, file);
   const cur = JSON.stringify(snapObj, null, 2);

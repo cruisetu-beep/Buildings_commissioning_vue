@@ -726,6 +726,8 @@ export function parseDayPair(raw) {
     /* 按 metrics 的判据字段识别，三者互斥：
          r_pump_chiller → C03 泵/主机涨幅比
          deltaM         → C08 极寒/温和日采暖泵中位差，|Mw - Mc|/Mc，恒为正
+         powerRatio/gate→ D04 过渡季/盛夏冷机功耗比。两种形态共用一个 ruleId：
+                          常规形态给 powerRatio，除零门控形态只给 gate
          deltaEta       → C02 散热侧变化率，(E_A - E_B)/E_A，下降为正
          deltaR         → C07 采暖泵变化率，(E_B - E_A)/E_A，下降为负
        C02 与 C07 分子顺序相反，符号含义也相反，文案不能共用。
@@ -739,6 +741,8 @@ export function parseDayPair(raw) {
         ? "PumpChillerRatio"
         : m.deltaM !== undefined
         ? "HeatMedianDelta"
+        : m.powerRatio !== undefined || m.gate !== undefined
+        ? "TransSeasonRatio"
         : m.deltaR !== undefined
         ? "HeatDelta"
         : "RejectDelta",
@@ -812,6 +816,43 @@ export function parseDayPair(raw) {
     };
   }
 
+  /* D04（CR0023）：过渡季与盛夏的冷机日电耗比，powerRatio ≥ 阈值触发。
+     同一个 ruleId 下有**两种 payload 形态**，靠 metrics.gate 区分：
+       常规    {powerRatio, threshold, rFanChiller, passed}
+       除零门控 {gate:"zeroDivisionPass", passed:true}
+              —— dayB 是 dayA 的副本（日期、标签、数值逐个相同），
+                 判据根本没算。此时 passed=true 的意思是「放行」而非
+                 「合格」，不能当成正常渲染，见 rule-narrative.js 的 D04。
+
+     ⚠ delta 符号与其余 dayPair 规则相反：后端给的是 dayA − dayB，
+        而 C02/C03/C07/C08 的约定是 dayB − dayA（实测 A013 三窗口六个分项
+        无一例外）。原样显示会在同一行里自相矛盾（「25 → 725，−700」）。
+        此处自算，与前端本就自算的 rate 保持一致。
+        **只在本分支自算，共用的 rows 不动**——delta 是四条规则共用字段，
+        目前只有 C08 有 fixture，改共用路径无法验证另三条不受影响。
+        统一处理已挂问题清单，等 fixture 补齐再做。 */
+  if (base.algo === "TransSeasonRatio") {
+    const fixed = rows.map((r) => ({ ...r, delta: Number((r.dayB - r.dayA).toFixed(2)) }));
+    const chiller = fixed.find((r) => /U2A00/.test(r.name)) || fixed[0];
+    return {
+      ...base,
+      rows: fixed,
+      /* 判据只看冷机一个节点的两日值，风机不参与（rFanChiller 算了但不在
+         判定准则表里）。图只画冷机：两者量级差 149~188 倍，同轴必然把
+         冷机压成一条贴底的线；而把不参与判据的分项画进来本身没有依据。
+         风机仍留在 rows 里，数据页签照常显示。 */
+      chartRows: chiller ? [chiller] : [],
+      totalA: Number(raw.energyBreakdown?.totalDayA),
+      totalB: Number(raw.energyBreakdown?.totalDayB),
+      gate: m.gate || "",
+      powerRatio: m.powerRatio,
+      rFanChiller: m.rFanChiller,
+      meteoNote: raw.meteorology?.note || "",
+      /* 门控形态下 dayA 与 dayB 是同一天，日对图会画出两个重合的点 */
+      samePair: (raw.dayA?.date || "") === (raw.dayB?.date || ""),
+    };
+  }
+
   /* C02（CR0019）：散热侧合计的相对变化率。节点数不定（实测 3 个），
      且 energyBreakdown 另给 totalDayA / totalDayB —— 注意 modelNodes 的
      parentNodeId 表明 U2A02 / U2A04 是 U2A00 的子节点，合计把两者算了两遍，
@@ -829,7 +870,7 @@ export function parseDayPair(raw) {
 }
 
 export function buildDayPairOption(d) {
-  if (d.algo === "HeatMedianDelta") return buildAbsDayPairOption(d);
+  if (d.algo === "HeatMedianDelta" || d.algo === "TransSeasonRatio") return buildAbsDayPairOption(d);
   if (d.algo === "RejectDelta" || d.algo === "HeatDelta") return buildRejectDeltaOption(d);
   const pumpPts = [100, 100 + d.dPump * 100];
   const chillerPts = [100, 100 + d.dChiller * 100];
@@ -1064,7 +1105,13 @@ function buildAbsDayPairOption(d) {
     },
   });
 
-  const lines = d.rows.map((r, i) => mkLine(r, COLOR.days[i % COLOR.days.length], false));
+  /* chartRows 让规则只把判据涉及的分项画进图（D04：只画冷机）；
+     不给则画全部 rows（C08 的用法）。 */
+  const plotted = d.chartRows || d.rows;
+  const solo = plotted.length === 1;
+  const lines = plotted.map((r, i) =>
+    mkLine(r, solo ? "#0f1d3d" : COLOR.days[i % COLOR.days.length], solo)
+  );
   if (d.totalRow) lines.push(mkLine(d.totalRow, "#0f1d3d", true));
 
   const all = lines.flatMap((l) => l.data).filter(Number.isFinite);
@@ -1095,7 +1142,7 @@ function buildAbsDayPairOption(d) {
       formatter: (ps) => {
         const i = ps[0].dataIndex;
         const head = i === 0 ? `${d.labelA} ${d.dayA}` : `${d.labelB} ${d.dayB}`;
-        const body = d.rows
+        const body = (d.chartRows || d.rows)
           .map((r) => `${r.name}：<b>${i === 0 ? r.dayA : r.dayB} ${d.unit}</b>`)
           .join("<br/>");
         const tot = d.totalRow

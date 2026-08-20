@@ -1,8 +1,83 @@
 [
-  { "name": "dm 触发：后端 passed=false", "key": "dm", "m": { "deltaM": 0.077, "threshold": 0.2, "passed": false }, "expect": true },
-  { "name": "dm 正常：后端 passed=true", "key": "dm", "m": { "deltaM": 1.733, "threshold": 0.2, "passed": true }, "expect": false },
-  { "name": "dm 反向判据：ΔM 远大于阈值也必须听后端布尔，不得在前端比大小", "key": "dm", "m": { "deltaM": 9.9, "threshold": 0.2, "passed": false }, "expect": true },
-  { "name": "meteo 共用：C08 与 C02/C07 同读 conditionPassed", "key": "meteo", "m": { "conditionPassed": true }, "expect": true },
-  { "name": "meteo 未通过", "key": "meteo", "m": { "conditionPassed": false }, "expect": false },
-  { "name": "未知 key 返回 null（新 key 忘接会被这条抓住）", "key": "__nope__", "m": {}, "expect": null }
+  {
+    "name": "dm 触发：后端 passed=false",
+    "key": "dm",
+    "m": {
+      "deltaM": 0.077,
+      "threshold": 0.2,
+      "passed": false
+    },
+    "expect": true
+  },
+  {
+    "name": "dm 正常：后端 passed=true",
+    "key": "dm",
+    "m": {
+      "deltaM": 1.733,
+      "threshold": 0.2,
+      "passed": true
+    },
+    "expect": false
+  },
+  {
+    "name": "dm 反向判据：ΔM 远大于阈值也必须听后端布尔，不得在前端比大小",
+    "key": "dm",
+    "m": {
+      "deltaM": 9.9,
+      "threshold": 0.2,
+      "passed": false
+    },
+    "expect": true
+  },
+  {
+    "name": "meteo 共用：C08 与 C02/C07 同读 conditionPassed",
+    "key": "meteo",
+    "m": {
+      "conditionPassed": true
+    },
+    "expect": true
+  },
+  {
+    "name": "meteo 未通过",
+    "key": "meteo",
+    "m": {
+      "conditionPassed": false
+    },
+    "expect": false
+  },
+  {
+    "name": "未知 key 返回 null（新 key 忘接会被这条抓住）",
+    "key": "__nope__",
+    "m": {},
+    "expect": null
+  },
+  {
+    "name": "pr 触发：powerRatio 超阈值，后端 passed=false",
+    "key": "pr",
+    "m": {
+      "powerRatio": 1.2,
+      "threshold": 0.8,
+      "passed": false
+    },
+    "expect": true
+  },
+  {
+    "name": "pr 正常：后端 passed=true",
+    "key": "pr",
+    "m": {
+      "powerRatio": 0.0345,
+      "threshold": 0.8,
+      "passed": true
+    },
+    "expect": false
+  },
+  {
+    "name": "pr 门控：判据没算，必须返回 null 而非 false（否则判据表显示 ✕＝已检查不满足）",
+    "key": "pr",
+    "m": {
+      "gate": "zeroDivisionPass",
+      "passed": true
+    },
+    "expect": null
+  }
 ]
