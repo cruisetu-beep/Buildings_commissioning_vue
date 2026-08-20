@@ -330,6 +330,35 @@ const vals = computed(() => {
   }
   if (dayPair.value) {
     const p = dayPair.value;
+    /* C08（HeatMedianDelta）：判据是绝对值相对差，与 C02/C07 的带符号变化率
+       不同，且合计由派生行 totalRow 承载、rows 里只剩分项，故单列一支。 */
+    if (p.algo === "HeatMedianDelta") {
+      return {
+        dayA: fmtDate(p.dayA),
+        dayB: fmtDate(p.dayB),
+        labelA: p.labelA,
+        labelB: p.labelB,
+        meteoA: fix1(p.meteoA),
+        meteoB: fix1(p.meteoB),
+        meteoRise: fix1(Math.abs(Number(p.meteoDelta))),
+        meteoUnit: p.meteoUnit,
+        coldThreshold: fix1(p.coldThreshold),
+        warmThreshold: fix1(p.warmThreshold),
+        totalA: num(p.totalA),
+        totalB: num(p.totalB),
+        deltaM: pct(p.deltaM),
+        /* 判据写作「< 20%」，threshold 已是正数，仍取绝对值以防后端改符号 */
+        thresholdAbs: pct(Math.abs(Number(p.threshold))),
+        nodeCount: p.rows.length,
+        /* 分项名与两日数值并成一句，供文案点出冷、热两侧走向相反 */
+        nodeList: p.rows
+          .map((r) => `${r.name} ${num(r.dayA)} → ${num(r.dayB)} kWh`)
+          .join("、"),
+        /* conditionPassed 挂在 meteorology 下、不在 metrics 里，
+           stepPassed 只拿得到 _m，这里并进去（同 C02） */
+        _m: { ...m, conditionPassed: p.meteoPassed },
+      };
+    }
     /* C02（RejectDelta）与 C07（HeatDelta）结构相同：气象数值 + N 节点 + 合计。
        差别只在判据字段名与符号方向，vals 共用，文案各写各的。 */
     if (p.algo === "RejectDelta" || p.algo === "HeatDelta") {
@@ -460,6 +489,10 @@ function stepPassed(key, m) {
   /* C03：反向判据（R < 1/3 触发），且 R 可能为负。照 D05 取后端布尔，
      passed === false 即触发；不在前端比大小。 */
   if (key === "r") return m.passed === false;
+  /* C08：ΔM < 20% 触发（差距小才是缺陷），是反向判据。后端给了 passed，
+     两栋楼逐窗口核对过：passed=false ↔ category=目标调适、
+     passed=true ↔ category=正常。照约定取布尔，不在前端比大小。 */
+  if (key === "dm") return m.passed === false;
   return null;
 }
 const steps = computed(() => {
@@ -739,7 +772,11 @@ const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
                     <td class="mono">{{ r.dayA }}</td>
                     <td class="mono">{{ r.dayB }}</td>
                     <td class="mono">{{ r.delta > 0 ? "+" : "" }}{{ r.delta }}</td>
-                    <td class="mono">{{ (r.rate * 100).toFixed(1) }}%</td>
+                    <!-- C08 的 U2A01 实测有极寒日为 0 的窗口，rate 是 NaN，
+                         原样 toFixed 会在表里显示「NaN%」 -->
+                    <td class="mono">
+                      {{ Number.isFinite(r.rate) ? (r.rate * 100).toFixed(1) + "%" : "—" }}
+                    </td>
                   </tr>
                   <tr v-if="Number.isFinite(dayPair.totalA)">
                     <td><b>合计</b></td>

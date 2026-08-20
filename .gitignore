@@ -24,3 +24,6 @@ package-lock.json
 *.njsproj
 *.sln
 *.sw?
+
+# 验证脚手架的生成产物
+scripts/verify/.build/

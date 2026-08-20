@@ -1,0 +1,17 @@
+{
+  "ruleCode": "C08",
+  "buildId": "310101B002",
+  "note": "真实后端 payload，勿手改数值",
+  "window": {
+    "cxRuleId": "CR0028",
+    "analysisYear": 2025,
+    "windowGroup": 1,
+    "calcResult": {
+      "buildId": "310101B002",
+      "cxRuleId": "CR0028",
+      "category": "目标调适",
+      "visualType": "C",
+      "resultJson": "{\"type\":\"dayPair\",\"ruleId\":\"CR0028\",\"windowDays\":[\"2025-02-08\",\"2025-12-10\"],\"dayA\":{\"date\":\"2025-02-08\",\"label\":\"极寒日\"},\"dayB\":{\"date\":\"2025-12-10\",\"label\":\"温和冬日\"},\"meteorology\":{\"variable\":\"Tdb\",\"dayA\":-0.82,\"dayB\":15.47,\"delta\":16.29,\"coldThreshold\":0,\"warmThreshold\":8,\"unit\":\"°C\",\"conditionPassed\":true},\"energyBreakdown\":{\"series\":[{\"name\":\"U2A01 冷冻泵\",\"dayA\":0,\"dayB\":496.59,\"delta\":496.59},{\"name\":\"U2A05 热水泵\",\"dayA\":517.53,\"dayB\":60.8,\"delta\":-456.73},{\"name\":\"U2A01+U2A05 采暖泵合计\",\"dayA\":517.53,\"dayB\":557.39,\"delta\":39.86}],\"totalDayA\":517.53,\"totalDayB\":557.39,\"unit\":\"kWh\"},\"metrics\":{\"deltaM\":0.077,\"medianCold\":517.53,\"medianWarm\":557.39,\"threshold\":0.2,\"coldDays\":[\"2025-02-08\"],\"warmDays\":[\"2025-12-20\",\"2025-12-10\",\"2025-12-19\"],\"passed\":false},\"category\":\"目标调适\",\"reason\":\"ΔM=7.7%（<20% 触发）Mc=518 Mw=557\"}"
+    }
+  }
+}

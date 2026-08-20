@@ -725,12 +725,20 @@ export function parseDayPair(raw) {
     kind: "dayPair",
     /* 按 metrics 的判据字段识别，三者互斥：
          r_pump_chiller → C03 泵/主机涨幅比
+         deltaM         → C08 极寒/温和日采暖泵中位差，|Mw - Mc|/Mc，恒为正
          deltaEta       → C02 散热侧变化率，(E_A - E_B)/E_A，下降为正
          deltaR         → C07 采暖泵变化率，(E_B - E_A)/E_A，下降为负
-       C02 与 C07 分子顺序相反，符号含义也相反，文案不能共用。 */
+       C02 与 C07 分子顺序相反，符号含义也相反，文案不能共用。
+
+       ⚠ 最后一档是兜底而非显式匹配：metrics 里没有 algo 字段（六·F），
+         认不出的 dayPair 规则会被静默当成 C02 渲染而不报错——C08 接入前
+         就是这样，deltaEta 算出 NaN 但图照画。已挂问题清单，暂不改动，
+         新增 dayPair 规则务必先在此加一档。 */
     algo:
       m.r_pump_chiller !== undefined
         ? "PumpChillerRatio"
+        : m.deltaM !== undefined
+        ? "HeatMedianDelta"
         : m.deltaR !== undefined
         ? "HeatDelta"
         : "RejectDelta",
@@ -774,6 +782,36 @@ export function parseDayPair(raw) {
     };
   }
 
+  /* C08（CR0028）：极寒日与温和日的采暖泵日电耗差。
+     ⚠ series 的末项是前两项之和的**派生合计**（实测 B002、A004 两栋楼
+        均满足 series[2] === series[0] + series[1]），不是节点。C02 的
+        三项都是真节点，若一并留在 rows 里，合计线会被画两遍。此处摘出单列。
+     ⚠ 不归一化，纵轴用绝对 kWh：U2A01 在极寒日可能为 0（B002 实测 0 → 496.59），
+        比值未定义；A004 的 U2A01 归一化后到 1130%，其余线全被压进轴底。
+        两个窗口以不同方式失效，不是零值这一个特例的问题。 */
+  if (base.algo === "HeatMedianDelta") {
+    const hasDerivedTotal = rows.length > 2;
+    const tA0 = Number(raw.energyBreakdown?.totalDayA);
+    const tB0 = Number(raw.energyBreakdown?.totalDayB);
+    return {
+      ...base,
+      rows: hasDerivedTotal ? rows.slice(0, -1) : rows,
+      totalRow: hasDerivedTotal ? rows[rows.length - 1] : null,
+      totalA: tA0,
+      totalB: tB0,
+      totalRate: Number.isFinite(tA0) && tA0 ? (tB0 - tA0) / tA0 : NaN,
+      medianCold: Number(m.medianCold),
+      medianWarm: Number(m.medianWarm),
+      deltaM: Number(m.deltaM),
+      /* C08 的气象前提是两侧各自越阈值，用 coldThreshold/warmThreshold
+         两个字段，而非 C02/C07 那个单一的 meteorology.threshold */
+      coldThreshold: raw.meteorology?.coldThreshold,
+      warmThreshold: raw.meteorology?.warmThreshold,
+      coldDays: m.coldDays || [],
+      warmDays: m.warmDays || [],
+    };
+  }
+
   /* C02（CR0019）：散热侧合计的相对变化率。节点数不定（实测 3 个），
      且 energyBreakdown 另给 totalDayA / totalDayB —— 注意 modelNodes 的
      parentNodeId 表明 U2A02 / U2A04 是 U2A00 的子节点，合计把两者算了两遍，
@@ -791,6 +829,7 @@ export function parseDayPair(raw) {
 }
 
 export function buildDayPairOption(d) {
+  if (d.algo === "HeatMedianDelta") return buildAbsDayPairOption(d);
   if (d.algo === "RejectDelta" || d.algo === "HeatDelta") return buildRejectDeltaOption(d);
   const pumpPts = [100, 100 + d.dPump * 100];
   const chillerPts = [100, 100 + d.dChiller * 100];
@@ -990,6 +1029,107 @@ function buildRejectDeltaOption(d) {
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: { color: COLOR.axis, fontSize: 11, formatter: "{value}%" },
+      splitLine: { lineStyle: { color: COLOR.split } },
+    },
+    series: lines,
+  };
+}
+
+/* C08（CR0028）。同为日对斜率图，但纵轴是绝对 kWh、不做归一化。
+   理由见 parseDayPair 的 HeatMedianDelta 分支：两个实测窗口下归一化
+   分别以「分母为零」和「一条线冲到 1130% 压平其余」两种方式失效。
+   绝对值下两栋楼的非零分项量级差只有 8.5 / 11.3 倍，同轴可读
+   （远低于当年否掉柱状图的 C03 90 倍、C02 77 倍）。
+
+   ⚠ 不画合格线。判据用的是冷侧 + 热侧的合计，而实测两栋楼里两侧
+      方向相反（供暖退、供冷起），合计是两个反向变化相抵后的残值。
+      口径未澄清前画一条合格线等于替后端选一种解释，同 C02 的处理。 */
+function buildAbsDayPairOption(d) {
+  const fmt = (v) => `${Number(v).toFixed(1)}`;
+  const mkLine = (r, color, bold) => ({
+    name: r.name,
+    type: "line",
+    data: [Number(r.dayA), Number(r.dayB)],
+    symbol: "circle",
+    symbolSize: bold ? 9 : 6,
+    lineStyle: { color, width: bold ? 2.5 : 1.5, type: bold ? "solid" : "dashed" },
+    itemStyle: { color },
+    label: {
+      show: true,
+      position: "right",
+      color,
+      fontSize: bold ? 11 : 10,
+      fontWeight: bold ? 600 : 400,
+      formatter: (p) => (p.dataIndex === 1 ? fmt(p.value) : ""),
+    },
+  });
+
+  const lines = d.rows.map((r, i) => mkLine(r, COLOR.days[i % COLOR.days.length], false));
+  if (d.totalRow) lines.push(mkLine(d.totalRow, "#0f1d3d", true));
+
+  const all = lines.flatMap((l) => l.data).filter(Number.isFinite);
+  const lo = Math.min(...all);
+  const span = Math.max(...all) - Math.min(lo, 0) || 1;
+  /* 绝对电耗以 0 为基线：量的大小要看得出来，且 U2A01 实测有整日为 0 的窗口 */
+  const min = lo >= 0 ? 0 : Math.floor(lo - span * 0.08);
+  const max = Math.ceil(Math.max(...all) + span * 0.08);
+  const meteo = Number.isFinite(Number(d.meteoDelta))
+    ? `${d.meteoVar} ${d.meteoA}${d.meteoUnit} → ${d.meteoB}${d.meteoUnit}`
+    : "";
+
+  return {
+    grid: { left: 70, right: 104, top: 46, bottom: 44 },
+    legend: {
+      top: 6,
+      right: 10,
+      itemWidth: 12,
+      itemHeight: 8,
+      textStyle: { color: COLOR.axisName, fontSize: 11 },
+      data: lines.map((l) => l.name),
+    },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "#fff",
+      borderColor: "rgba(60,110,200,.2)",
+      textStyle: { color: "#0f1d3d", fontSize: 12 },
+      formatter: (ps) => {
+        const i = ps[0].dataIndex;
+        const head = i === 0 ? `${d.labelA} ${d.dayA}` : `${d.labelB} ${d.dayB}`;
+        const body = d.rows
+          .map((r) => `${r.name}：<b>${i === 0 ? r.dayA : r.dayB} ${d.unit}</b>`)
+          .join("<br/>");
+        const tot = d.totalRow
+          ? `<br/>${d.totalRow.name}：<b>${i === 0 ? d.totalRow.dayA : d.totalRow.dayB} ${d.unit}</b>`
+          : "";
+        return `${head}<br/>${body}${tot}`;
+      },
+    },
+    xAxis: {
+      type: "category",
+      data: [
+        `${d.labelA} ${String(d.dayA).slice(5)}`,
+        `${d.labelB} ${String(d.dayB).slice(5)}`,
+      ],
+      name: meteo,
+      nameLocation: "middle",
+      nameGap: 30,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      boundaryGap: ["18%", "18%"],
+      axisLine: { lineStyle: { color: COLOR.line } },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11 },
+    },
+    yAxis: {
+      type: "value",
+      name: `日电耗 (${d.unit})`,
+      nameLocation: "middle",
+      nameGap: 52,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      min,
+      max,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11 },
       splitLine: { lineStyle: { color: COLOR.split } },
     },
     series: lines,

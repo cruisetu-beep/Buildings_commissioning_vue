@@ -769,6 +769,101 @@ const C07 = {
   },
 };
 
+/* C08（CR0028）。C 类日对，比较极寒日与温和日的采暖泵日电耗。
+   判据 ΔM = |M_warm − M_cold| / M_cold < 20% 触发（差距太小＝没跟随负荷）。
+
+   ⚠⚠ 判据口径把结论翻转了，文案因此退到中性表述（同 C02 的处理）。
+      requiredNodeTypes 是 U2A01 + U2A05，而 U2A01 的 modelNodeName 是
+      「冷冻(采暖)泵」——冷侧与热侧相加。实测两栋楼在同一对窗口日上：
+        B002  U2A05 热水泵 517.53 → 60.80（降 88.3%，教科书式的负荷跟随）
+              U2A01 冷冻泵    0   → 496.59（供冷起来了）
+              合计 517.53 → 557.39 ⇒ ΔM = 7.7% ⇒ 判「目标调适」
+        A004  U2A05 256.8 → 136.2（降 47.0%）
+              U2A01   66  → 746
+              合计 322.8 → 882.2 ⇒ ΔM = 173.3% ⇒ 判「正常」
+      整栋楼是从供暖切到了供冷，两个反向变化在合计里相抵。只看真·采暖侧
+      U2A05，两栋楼都远超 20% 阈值、都该判正常；B002 的触发完全来自
+      冷侧顶上来填掉了热侧退下去的量。与六·C（U2A00 父子重复计入）同类，
+      但那边只是把总量算大，这边会翻转判定。已挂问题清单。
+      **口径厘清后要改的是 title 与 narrative 两处措辞，不涉及逻辑。**
+
+   ⚠ medianCold / medianWarm 号称中位数，实际就是 totalDayA / totalDayB。
+      coldDays 只有 1 天（1 天的中位数），warmDays 有 3 天但 payload 只带了
+      其中 1 天的分项数据，medianWarm 无法核对。文案不写「中位数」二字。
+
+   ⚠ reason 与 resultMd 的结论句是套死的模板，不随判定结果变：A004 的
+      category = 正常，结论句仍写「ΔM=173.3%（<20% 触发）」，字面读作
+      173.3% 小于 20%。第 ④ 块渲染 resultMd 原文会与结论卡打架，
+      与六·E 的 BB-S1 同类（那次错的是表格标记，这次是结论句本身）。
+      前端不复述 reason，结论卡走本常量。
+
+   ⚠ U2A01 在 modelNodes 里叫「冷冻(采暖)泵」、在 resultMd 表格里叫
+      「冷冻泵」。图例与表格用 energyBreakdown.series 的 name（即后者）。 */
+const C08 = {
+  narrative: {
+    triggered:
+      "{dayA}（{labelA}，室外日均干球 <b>{meteoA}{meteoUnit}</b>）与 {dayB}" +
+      "（{labelB}，<b>{meteoB}{meteoUnit}</b>）温差 {meteoRise}{meteoUnit}。" +
+      "两天的采暖泵日电耗合计为 <b>{totalA} kWh</b> 与 <b>{totalB} kWh</b>，" +
+      "相对差 ΔM = <b>{deltaM}</b>，<b>落入触发区间</b>（< {thresholdAbs}）。" +
+      "合计由 {nodeCount} 个节点相加，其中 {nodeList} —— 分项走向见下图。",
+    normal:
+      "{dayA}（{labelA}，室外日均干球 <b>{meteoA}{meteoUnit}</b>）与 {dayB}" +
+      "（{labelB}，<b>{meteoB}{meteoUnit}</b>）温差 {meteoRise}{meteoUnit}。" +
+      "两天的采暖泵日电耗合计为 <b>{totalA} kWh</b> 与 <b>{totalB} kWh</b>，" +
+      "相对差 ΔM = <b>{deltaM}</b>，未落入触发区间（< {thresholdAbs}）。" +
+      "合计由 {nodeCount} 个节点相加，其中 {nodeList} —— 分项走向见下图。",
+  },
+  /* 中性表述：不写「负荷跟随性不足」。合计口径把冷、热两侧相加，
+     实测两侧方向相反，结论方向未澄清前只陈述落点。 */
+  title: {
+    triggered: "采暖泵电耗相对差落入触发区间",
+    normal: "采暖泵电耗相对差未落入触发区间",
+  },
+  steps: [
+    {
+      kind: "test",
+      what: "极寒日与温和日的温差",
+      sub: "选窗前提：极寒日 T < {coldThreshold}{meteoUnit}、温和日 T > {warmThreshold}{meteoUnit}",
+      val: "{meteoA}{meteoUnit} → {meteoB}{meteoUnit}",
+      req: "两侧各自越过阈值",
+      key: "meteo",
+    },
+    {
+      kind: "stated",
+      what: "取数据",
+      sub: "{nodeCount} 个节点的日累计电耗相加，分项数值见下方图表与「数据」页签",
+      val: "{labelA} {totalA} kWh · {labelB} {totalB} kWh",
+      req: "—",
+    },
+    {
+      kind: "test",
+      what: "相对差 ΔM",
+      sub: "|温和日 − 极寒日| ÷ 极寒日，取绝对值、恒为正",
+      val: "{deltaM}",
+      req: "< {thresholdAbs}",
+      key: "dm",
+    },
+  ],
+  foot: {
+    triggered: "判据满足 → 判定为 <b>目标调适</b>",
+    normal: "判据未满足 → 判定为 <b>正常</b>",
+  },
+  /* 手册 C08「物理原理」原文 */
+  causes: [
+    "采暖侧缺乏气候补偿，循环泵定频定流量运行，不随室外温度调节输配量",
+    "供暖季一次网/二次网阀门长期锁定，水力工况在整个采暖季不作切换",
+    "极寒工况按设计满负荷整定后未再回调，温和日沿用同一套运行参数",
+  ],
+  readHint: {
+    slope:
+      "纵轴是日电耗的绝对值（kWh），不是比例——这条规则的分项里有整日为 0 的情形，" +
+      "换算成百分比会失去意义。粗实线是判据看的合计，两条虚线是相加前的分项。" +
+      "横轴下方标注两天的室外干球温度。留意两条虚线是否交叉：交叉意味着这两天之间" +
+      "冷、热两侧发生了切换，合计的变化就不只反映采暖泵一侧。",
+  },
+};
+
 /* C04（CR0024）。与 C06 同为 D 类 distribution，但**判据方向相反**：
    C06 比值大才触发（离散度过大），C04 是 CV 与比值都小才触发（毫无波动）。
    payload 的 metrics 字段名两条规则完全相同、且没有 algo 声明，
@@ -1006,6 +1101,8 @@ const NARRATIVES = {
   CR0036: BB_S1,
   "AA-S3": AA_S3,
   CR0033: AA_S3,
+  C08,
+  CR0028: C08,
 };
 
 /* 后端 ruleCode 可能带前后缀或大小写差异，做一次归一化再匹配 */
