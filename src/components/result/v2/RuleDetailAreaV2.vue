@@ -330,7 +330,13 @@ function stepPassed(key, m) {
   }
   /* 残留率的比较方向按业态分组而不同（间歇型过高触发、客流型偏低触发），
      不在前端复刻，直接取后端结论：passed=false 即判据满足、指向触发。 */
-  if (key === "residual") return m.passed === false;
+  /* D05 与 AA-S2 / BA-S2 共用 key「residual」：D05 有 passed（方向随业态变，
+     必须取后端布尔），AA-S2 / BA-S2 没有 passed（方向固定，R > 阈值触发）。
+     曾误写成两个独立分支,后者被前者遮蔽导致 ✓ 显示为 ✕。 */
+  if (key === "residual")
+    return m.passed !== undefined
+      ? m.passed === false
+      : Number(m.residual) > Number(m.threshold);
   if (key === "frac") return Number(m.frac) > Number(m.threshold);
   if (key === "ndr") return Number(m.ndr) > Number(m.threshold);
   /* B 类。要求列写的是合格条件，所以 ✓ 表示达标；
@@ -344,8 +350,6 @@ function stepPassed(key, m) {
   if (key === "eta") return m.passed === false;
   /* AA-S1：同样无 passed，方向固定（SR > 阈值触发） */
   if (key === "sr") return Number(m.sr) > Number(m.threshold);
-  /* AA-S2：payload 无 passed 字段，方向固定（R > 阈值触发），直接比较 */
-  if (key === "residual") return Number(m.residual) > Number(m.threshold);
   if (key === "slope") return m.slopePassed === true;
   /* C03：反向判据（R < 1/3 触发），且 R 可能为负。照 D05 取后端布尔，
      passed === false 即触发；不在前端比大小。 */
