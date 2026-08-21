@@ -106,5 +106,32 @@
       "threshold": 0.3
     },
     "expect": false
+  },
+  {
+    "name": "eui 正常：4.343 ≤ 22",
+    "key": "eui",
+    "m": {
+      "_eui": 4.343,
+      "_limit": 22
+    },
+    "expect": false
+  },
+  {
+    "name": "eui 触发：25.0 > 22（构造，尚无真实触发样本）",
+    "key": "eui",
+    "m": {
+      "_eui": 25.0,
+      "_limit": 22
+    },
+    "expect": true
+  },
+  {
+    "name": "eui 恰等阈值不触发（判据是 ≤）",
+    "key": "eui",
+    "m": {
+      "_eui": 10.0,
+      "_limit": 10
+    },
+    "expect": false
   }
 ]

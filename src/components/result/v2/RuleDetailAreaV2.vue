@@ -20,6 +20,7 @@ import {
   buildScheduleOption,
   parseRegression,
   buildRegressionOption,
+  buildEuiHourlyOption,
   parseDayPair,
   buildDayPairOption,
   parseDistribution,
@@ -139,9 +140,16 @@ const VIEWS = {
 };
 /* 门控窗口只留「数据」一个页签：图不画，就不该留一个点了没反应的按钮。
    下方 watch 会把 view 自动落到 data。 */
-const views = computed(() =>
-  gated.value ? [{ k: "data", label: "数据" }] : VIEWS[vizKind.value] || []
-);
+const views = computed(() => {
+  if (gated.value) return [{ k: "data", label: "数据" }];
+  /* D01 不是散点+拟合：横轴是时刻不是温度，页签一并换掉 */
+  if (regression.value?.algo === "EuiLimit")
+    return [
+      { k: "hour", label: "逐时强度" },
+      { k: "data", label: "数据" },
+    ];
+  return VIEWS[vizKind.value] || [];
+});
 
 /* ─── 模板取值 ─── */
 const meta = computed(() => getRuleNarrative(props.result?.ruleCode));
@@ -324,6 +332,31 @@ const vals = computed(() => {
   }
   if (regression.value) {
     const r = regression.value;
+    /* D01：EUI 对标业态限额。metrics 是 D02 的字段被整套挪用，
+       slopeLimit 装的其实是 EUI 限额，r2Passed/rSquaredThreshold 无意义。 */
+    if (r.algo === "EuiLimit") {
+      return {
+        season: r.season === "cooling" ? "制冷季" : r.season === "heating" ? "采暖季" : r.season,
+        dayList: (r.windowDays || []).map(fmtDate).join("、") || "—",
+        buildFunc: r.buildFunc || "—",
+        areaM2: num(r.areaM2),
+        sumKwh: num(r.sumKwh),
+        hours: r.hours,
+        n: r.n,
+        /* resultMd 与 reason 均为两位小数，对齐避免读者以为对不上 */
+        eui: num(r.eui, 2),
+        euiRaw: r.eui,
+        limitOriginal: num(r.limitOriginal, 2),
+        limitCorrected: num(r.limitCorrected, 2),
+        occupancy: pct(r.occupancyRate),
+        unit: r.unit,
+        peak: fix1(r.eMax),
+        /* 借用字段，仅参考展示 */
+        refSlope: num(r.refSlope, 2),
+        refR2: num(r.refR2, 2),
+        _m: { ...m, _eui: r.eui, _limit: r.limitCorrected },
+      };
+    }
     return {
       start: fmtDate(w.dateFrom),
       end: fmtDate(w.dateTo),
@@ -584,6 +617,15 @@ function stepPassed(key, m) {
      metrics 里没有 passed，只能直接比——三窗口实测与 category 一致：
      0.2078<0.3 触发、1.1935>0.3 正常、0.5144>0.3 正常。 */
   if (key === "gap") return Number(m.gap) < Number(m.threshold);
+  /* D01：EUI > 校正限额 触发。
+     ⚠ 这里**不取后端布尔**，是本页少数几处例外之一，理由：
+       metrics 只有 D02 挪用来的 r2Passed / slopePassed。slopeLimit 装的是
+       EUI 限额没错，但 slopePassed 到底比的是 EUI 还是 slope_k 无法确定——
+       而 slope_k 恒为 0，若比的是它，则 0 ≤ 22 恒真、D01 永远不会触发。
+       五个窗口全是「正常」，两种解释都吻合，样本区分不了。
+       故按 resultMd 判定准则表的字面（EUI ≤ 校正限额 → 正常）直接比。
+     ⚠ 方向未经触发样本验证——拿到触发窗口后必须回来复核。 */
+  if (key === "eui") return Number(m._eui) > Number(m._limit);
   return null;
 }
 const steps = computed(() => {
@@ -639,7 +681,10 @@ function render() {
         : undefined
     );
   } else if (regression.value) {
-    option = buildRegressionOption(regression.value);
+    option =
+      regression.value.algo === "EuiLimit"
+        ? buildEuiHourlyOption(regression.value)
+        : buildRegressionOption(regression.value);
   } else if (dayPair.value) {
     option = buildDayPairOption(dayPair.value);
   } else if (distribution.value) {
@@ -819,7 +864,11 @@ const algoMd = computed(() => activeWindow.value?.calcResult?.resultMd || "");
             <div v-if="view === 'data' && regression" class="v2-tblwrap">
               <table class="v2-dt">
                 <thead>
-                  <tr><th>#</th><th>室外干球温度 (°C)</th><th>空调系统总电耗 (kW)</th></tr>
+                  <!-- D01 的 t_db 是小时序号、energy 是功率密度，表头必须区分 -->
+                  <tr v-if="regression.algo === 'EuiLimit'">
+                    <th>#</th><th>时刻（小时序号）</th><th>空调功率密度 (W/m²)</th>
+                  </tr>
+                  <tr v-else><th>#</th><th>室外干球温度 (°C)</th><th>空调系统总电耗 (kW)</th></tr>
                 </thead>
                 <tbody>
                   <tr v-for="(r, i) in regression.rows" :key="i">

@@ -1053,6 +1053,112 @@ const BF_S1 = {
   },
 };
 
+/* D01（CR0017）。分业态 EUI 限额对标。type 是 regression，但**不是回归**。
+
+   ⚠⚠ regression 块整体是占位填充，图与文案都不能按拟合来写：
+       · dataPoints.t_db 装的是当日 0–23 的**小时序号**（每小时 4 个点，
+         n=96=24×4，15 分钟采样），不是干球温度；temperatureRange 也是 [0,23]
+       · slope_k 恒 0、rSquared 恒 1、formula 写「E = 0.00 × T_db + b」。
+         斜率 0 意味着预测恒定值，而 energy 实测 0.33~8.17 大幅波动——
+         斜率 0 与 R²=1 数学上不可能同时成立
+       · intercept_b 五窗逐个等于 eui.calculated，即它就是那 96 个点的算术
+         平均（实测 4.3433 vs 后端 4.343），不是回归截距
+       故图改画逐时强度曲线 + EUI/限额两条基准线，页签改「逐时强度」。
+       文案不提拟合，R²/斜率仅在步骤 3 作参考值列出并注明借用。
+
+   ⚠ metrics 整套是 D02 的字段被挪用：slopeLimit 装的其实是 **EUI 限额**，
+      rSquaredThreshold=0 配 r2Passed=true 恒真。外层 thresholdValue 更直接
+      写着「R² ≥(按 12 业态差异化)」——那是 D02 的描述。比六·F 更彻底。
+
+   ⚠⚠ 判定方向**未取后端布尔**，是全页少数例外。metrics 只有 slopePassed，
+      而 slope_k 恒为 0、slopeLimit=22，若它比的是斜率则 0 ≤ 22 恒真、
+      D01 永远不会触发。五个窗口全「正常」，两种解释都吻合、区分不了。
+      故按 resultMd 判定准则表的字面直接比 EUI 与校正限额。
+      **拿到触发样本后必须回来复核方向。**
+
+   ⚠ 4 倍缺陷（六·B）在本条会**改变结论**。hours=96 被当作 96 小时，但那是
+      一天的 96 个 15 分钟点。若实际时长应为 24h，EUI 全部 ×4：
+        窗口1 cooling  4.34 → 17.37  限额 22   仍正常
+        窗口2 cooling  3.97 → 15.89  限额 22   仍正常
+        窗口3 heating  2.57 → 10.27  限额 10   ★翻成触发
+        窗口4 heating  2.31 →  9.25  限额 10   仍正常
+        窗口5 heating  2.50 →  9.98  限额 10   仍正常（距限额仅 0.2%）
+      前几条规则里 4 倍要么被绕开、要么在比值里对消；D01 是第一条会因此
+      改变判定的——EUI 是绝对量，除以谁直接决定超不超标。已挂问题清单。
+
+   ⚠ dataPoints.energy 的单位是 W/m²（功率密度）不是 kWh：Σ=416.96，而
+      sumKwh/面积(千m²)=25707/61.661=416.91。因此逐时曲线、EUI、限额同轴。
+
+   ⚠ 五个窗口全部为「正常」，**没有触发样本**，fixture 只覆盖 normal 分支。 */
+const D01 = {
+  narrative: {
+    triggered:
+      "{season}极值日 {dayList}，空调系统总电耗 <b>{sumKwh} kWh</b>，" +
+      "空调面积 {areaM2} m²，日均能耗强度 EUI = <b>{eui} {unit}</b>，" +
+      "<b>超过</b>业态 {buildFunc} 的校正限额 {limitCorrected}（原始限额 " +
+      "{limitOriginal} × 使用率 {occupancy}）。",
+    normal:
+      "{season}极值日 {dayList}，空调系统总电耗 <b>{sumKwh} kWh</b>，" +
+      "空调面积 {areaM2} m²，日均能耗强度 EUI = <b>{eui} {unit}</b>，" +
+      "未超过业态 {buildFunc} 的校正限额 {limitCorrected}（原始限额 " +
+      "{limitOriginal} × 使用率 {occupancy}）。",
+  },
+  title: {
+    triggered: "空调能耗强度超出业态限额",
+    normal: "空调能耗强度未超出业态限额",
+  },
+  steps: [
+    {
+      kind: "stated",
+      what: "取数据",
+      sub: "U2000 空调系统总电耗，{n} 个采样点（每小时 4 点）",
+      val: "{sumKwh} kWh ÷ {areaM2} m²",
+      req: "—",
+    },
+    {
+      kind: "stated",
+      what: "限额校正",
+      sub: "校正式 EUI_limit × (0.4 + 0.6 × 实际使用率 ÷ 设计使用率)",
+      val: "{limitOriginal} × 使用率 {occupancy} = {limitCorrected}",
+      req: "—",
+    },
+    {
+      kind: "test",
+      what: "EUI 是否超出校正限额",
+      /* req 写的是**触发条件**：本页约定 ✓ = 判据成立 = 触发（见 foot） */
+      sub: "日均空调能耗强度与业态 {buildFunc} 的限额比较，超出即触发",
+      val: "{eui} {unit}",
+      req: "> {limitCorrected}",
+      key: "eui",
+    },
+    {
+      kind: "stated",
+      what: "斜率与 R²（借用字段，不参与判定）",
+      sub: "payload 沿用 D02 的 regression 结构，此二值为占位：斜率恒 0、R² 恒 1",
+      val: "斜率 {refSlope} · R² {refR2}",
+      req: "—",
+    },
+  ],
+  foot: {
+    triggered: "EUI 超出校正限额 → 判定为 <b>目标调适</b>",
+    normal: "EUI 未超出校正限额 → 判定为 <b>正常</b>",
+  },
+  /* 手册 D01「物理原理」原文 */
+  causes: [
+    "冷热源设备选型偏大，长期在低负荷率区间运行，部分负荷效率显著低于额定值",
+    "输配系统定频运行，水泵与风机能耗不随末端负荷变化",
+    "围护结构或新风量偏离设计工况，导致同等室内条件下的冷热负荷偏高",
+  ],
+  readHint: {
+    hour:
+      "横轴是当日 0–24 时，曲线是空调系统的逐时功率密度（W/m²）。" +
+      "深色虚线是全天平均，即判据用的 EUI；红色虚线是业态校正限额。" +
+      "这张图不是散点拟合——payload 里的「温度」字段装的是小时序号，" +
+      "所谓回归的斜率恒为 0、截距就是这条平均线，未做真实拟合。" +
+      "看曲线主要是判断高强度时段落在哪、以及平均值是被哪几个小时抬起来的。",
+  },
+};
+
 /* C04（CR0024）。与 C06 同为 D 类 distribution，但**判据方向相反**：
    C06 比值大才触发（离散度过大），C04 是 CV 与比值都小才触发（毫无波动）。
    payload 的 metrics 字段名两条规则完全相同、且没有 algo 声明，
@@ -1296,6 +1402,8 @@ const NARRATIVES = {
   CR0023: D04,
   "BF-S1": BF_S1,
   CR0044: BF_S1,
+  D01,
+  CR0017: D01,
 };
 
 /* 后端 ruleCode 可能带前后缀或大小写差异，做一次归一化再匹配 */

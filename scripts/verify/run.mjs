@@ -12,6 +12,7 @@ import { build } from "./extract.mjs";
 import { getRuleNarrative, fillTemplate } from "../../src/data/rule-narrative.js";
 import {
   buildDayPairOption, parseDayPair, buildScheduleOption, parseSchedule,
+  buildRegressionOption, buildEuiHourlyOption, parseRegression,
 } from "../../src/data/viz-chart-options-v2.js";
 
 const DIR = import.meta.dirname;
@@ -112,6 +113,16 @@ for (const file of fs.readdirSync(FIX).filter((f) => f.endsWith(".json")).sort()
   /* E 类同样要覆盖：图例名与曲线归属只在 option.series 里，vals 抓不到。
      BF-S1 的两条曲线若标反（把「高负荷」贴到低负荷线上），
      只看 vals 完全发现不了。 */
+  /* B 类：D01 的横轴含义、基准线位置只在 option 里，vals 抓不到 */
+  if (raw.type === "regression") {
+    const d = parseRegression(raw);
+    const opt = d.algo === "EuiLimit" ? buildEuiHourlyOption(d) : buildRegressionOption(d);
+    snapObj.chart = {
+      algo: d.algo, xName: opt.xAxis?.name, yName: opt.yAxis?.name,
+      marks: opt.series?.[0]?.markLine?.data?.map((k) => ({ name: k.name, y: k.yAxis })),
+      head: opt.series?.[0]?.data?.slice(0, 3),
+    };
+  }
   if (raw.type === "schedule") {
     const d = parseSchedule(raw);
     const opt = buildScheduleOption(d);

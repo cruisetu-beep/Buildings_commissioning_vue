@@ -261,6 +261,52 @@ export function parseRegression(raw) {
   if (!rows.length) return null;
 
   const m = raw.metrics || {};
+
+  /* D01（CR0017）：分业态 EUI 限额对标。type 同为 regression，但
+     **regression 块整体是占位填充，不是真的拟合**：
+       · dataPoints.t_db 装的是当日 0–23 的**小时序号**（每小时重复 4 次，
+         n=96=24×4，15 分钟采样），不是干球温度；temperatureRange 也是 [0,23]
+       · slope_k 恒为 0、rSquared 恒为 1、formula 写「E = 0.00 × T_db + b」。
+         斜率为 0 意味着预测恒定值，而 energy 实测在 0.33~8.17 间波动——
+         斜率 0 与 R²=1 数学上不可能同时成立
+       · intercept_b 五个窗口逐个等于 eui.calculated，即它就是这 96 个点的
+         算术平均（实测 4.3433 vs 后端 4.343），不是回归截距
+       · metrics 整套是 D02 的字段被挪用：slopeLimit 装的其实是 EUI 限额，
+         rSquaredThreshold=0 配 r2Passed=true 恒真
+     故不走散点+拟合线，单列一支按逐时强度曲线渲染。
+
+     dataPoints.energy 的单位是 **W/m²（功率密度）**，不是 kWh：
+     Σenergy = 416.96，而 sumKwh/面积(千m²) = 25707/61.661 = 416.91，吻合。
+     因此逐时曲线、EUI、限额三者单位一致，可画在同一纵轴上。 */
+  if (raw.eui) {
+    const e = raw.eui;
+    const vals = rows.map((r) => r[1]);
+    return {
+      algo: "EuiLimit",
+      rows,
+      /* x 用「小时 + 刻钟」的连续值，使 96 个点铺满 0–24 而不是挤在 24 个整点 */
+      series: vals.map((v, i) => [i / (rows.length / 24), v]),
+      eui: Number(e.calculated),
+      limitOriginal: Number(e.limitOriginal),
+      limitCorrected: Number(e.limitCorrected),
+      occupancyRate: Number(e.occupancyRate),
+      areaM2: Number(e.areaM2),
+      sumKwh: Number(e.sumKwh),
+      hours: Number(e.hours),
+      season: e.season || "",
+      buildFunc: e.buildFunc || "",
+      unit: e.unit || "W/m²·h",
+      windowDays: raw.windowDays || [],
+      n: rows.length,
+      eMin: Math.min(...vals),
+      eMax: Math.max(...vals),
+      /* 借用字段，仅作参考展示，不参与判定 */
+      refSlope: Number(reg.slope_k),
+      refR2: Number(reg.rSquared),
+      refFormula: reg.formula || "",
+    };
+  }
+
   const [tMin, tMax] = reg.temperatureRange || [
     Math.min(...rows.map((r) => r[0])),
     Math.max(...rows.map((r) => r[0])),
@@ -288,6 +334,86 @@ export function parseRegression(raw) {
     slopePassed: m.slopePassed,
     eMin: Math.min(...rows.map((r) => r[1])),
     eMax: Math.max(...rows.map((r) => r[1])),
+  };
+}
+
+/* D01（CR0017）。逐时空调功率密度曲线 + EUI 与校正限额两条基准线。
+   三者单位同为 W/m²，可共轴（见 parseRegression 的 EuiLimit 分支）。
+   不画散点与拟合线：那个 regression 块是占位填充，横轴根本不是温度。 */
+export function buildEuiHourlyOption(d) {
+  const hi = Math.max(d.eMax, d.limitCorrected, d.eui);
+  return {
+    grid: { left: 62, right: 96, top: 30, bottom: 44 },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "#fff",
+      borderColor: "rgba(60,110,200,.2)",
+      textStyle: { color: "#0f1d3d", fontSize: 12 },
+      formatter: (ps) => {
+        const p = ps[0];
+        const h = Math.floor(p.value[0]);
+        const q = Math.round((p.value[0] - h) * 60);
+        return `${String(h).padStart(2, "0")}:${String(q).padStart(2, "0")}<br/>强度：<b>${p.value[1]} W/m²</b>`;
+      },
+    },
+    xAxis: {
+      type: "value",
+      min: 0,
+      max: 24,
+      interval: 3,
+      name: "时刻",
+      nameLocation: "middle",
+      nameGap: 30,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      axisLine: { lineStyle: { color: COLOR.line } },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11, formatter: (v) => `${v}:00` },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: "value",
+      name: "空调功率密度 (W/m²)",
+      nameLocation: "middle",
+      nameGap: 44,
+      nameTextStyle: { color: COLOR.axisName, fontSize: 11 },
+      min: 0,
+      max: Math.ceil(hi * 1.12),
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: COLOR.axis, fontSize: 11 },
+      splitLine: { lineStyle: { color: COLOR.split } },
+    },
+    series: [
+      {
+        name: "逐时强度",
+        type: "line",
+        data: d.series,
+        symbol: "none",
+        smooth: false,
+        lineStyle: { width: 1.8, color: "#2f7fff" },
+        itemStyle: { color: "#2f7fff" },
+        areaStyle: { color: "#2f7fff", opacity: 0.1 },
+        markLine: {
+          symbol: "none",
+          silent: true,
+          label: { position: "end", fontSize: 11, formatter: (p) => p.name },
+          data: [
+            {
+              yAxis: d.eui,
+              name: `EUI ${d.eui}`,
+              lineStyle: { color: "#0f1d3d", type: "dashed", width: 1.6 },
+              label: { color: "#0f1d3d" },
+            },
+            {
+              yAxis: d.limitCorrected,
+              name: `限额 ${d.limitCorrected}`,
+              lineStyle: { color: "#e0534f", type: "dashed", width: 1.6 },
+              label: { color: "#e0534f" },
+            },
+          ],
+        },
+      },
+    ],
   };
 }
 

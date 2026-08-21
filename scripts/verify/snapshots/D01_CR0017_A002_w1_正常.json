@@ -1,0 +1,81 @@
+{
+  "vals": {
+    "season": "制冷季",
+    "dayList": "08月09日",
+    "buildFunc": "BB",
+    "areaM2": 61661,
+    "sumKwh": 25707,
+    "hours": 96,
+    "n": 96,
+    "eui": 4.34,
+    "euiRaw": 4.343,
+    "limitOriginal": 22,
+    "limitCorrected": 22,
+    "occupancy": "100.0%",
+    "unit": "W/m²·h",
+    "peak": "8.2",
+    "refSlope": 0,
+    "refR2": 1,
+    "_m": {
+      "rSquaredThreshold": 0,
+      "slopeLimit": 22,
+      "r2Passed": true,
+      "slopePassed": true,
+      "_eui": 4.343,
+      "_limit": 22
+    }
+  },
+  "steps": [
+    [
+      "eui",
+      false
+    ]
+  ],
+  "texts": {
+    "narrative": "制冷季极值日 08月09日，空调系统总电耗 <b>25707 kWh</b>，空调面积 61661 m²，日均能耗强度 EUI = <b>4.34 W/m²·h</b>，未超过业态 BB 的校正限额 22（原始限额 22 × 使用率 100.0%）。",
+    "title": "空调能耗强度未超出业态限额",
+    "foot": "EUI 未超出校正限额 → 判定为 <b>正常</b>",
+    "steps[0].sub": "U2000 空调系统总电耗，96 个采样点（每小时 4 点）",
+    "steps[0].val": "25707 kWh ÷ 61661 m²",
+    "steps[0].req": "—",
+    "steps[1].sub": "校正式 EUI_limit × (0.4 + 0.6 × 实际使用率 ÷ 设计使用率)",
+    "steps[1].val": "22 × 使用率 100.0% = 22",
+    "steps[1].req": "—",
+    "steps[2].sub": "日均空调能耗强度与业态 BB 的限额比较，超出即触发",
+    "steps[2].val": "4.34 W/m²·h",
+    "steps[2].req": "> 22",
+    "steps[3].sub": "payload 沿用 D02 的 regression 结构，此二值为占位：斜率恒 0、R² 恒 1",
+    "steps[3].val": "斜率 0 · R² 1",
+    "steps[3].req": "—",
+    "readHint.hour": "横轴是当日 0–24 时，曲线是空调系统的逐时功率密度（W/m²）。深色虚线是全天平均，即判据用的 EUI；红色虚线是业态校正限额。这张图不是散点拟合——payload 里的「温度」字段装的是小时序号，所谓回归的斜率恒为 0、截距就是这条平均线，未做真实拟合。看曲线主要是判断高强度时段落在哪、以及平均值是被哪几个小时抬起来的。"
+  },
+  "chart": {
+    "algo": "EuiLimit",
+    "xName": "时刻",
+    "yName": "空调功率密度 (W/m²)",
+    "marks": [
+      {
+        "name": "EUI 4.343",
+        "y": 4.343
+      },
+      {
+        "name": "限额 22",
+        "y": 22
+      }
+    ],
+    "head": [
+      [
+        0,
+        0.8
+      ],
+      [
+        0.25,
+        0.6
+      ],
+      [
+        0.5,
+        0.67
+      ]
+    ]
+  }
+}
