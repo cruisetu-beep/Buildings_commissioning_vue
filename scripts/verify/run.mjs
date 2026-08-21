@@ -127,7 +127,13 @@ for (const file of fs.readdirSync(FIX).filter((f) => f.endsWith(".json")).sort()
     const d = parseSchedule(raw);
     const opt = buildScheduleOption(d);
     snapObj.chart = {
-      series: opt.series?.map((s) => ({ name: s.name, head: s.data?.slice(0, 3) })),
+      series: opt.series?.map((s) => ({
+        name: s.name,
+        head: s.data?.slice(0, 3),
+        /* markLine 必须进快照：BH-S1 的两条均值线互换过一次，
+           只存 name/head 时全绿通过。基准线画错值与画错归属都要能抓到。 */
+        marks: s.markLine?.data?.map((k) => ({ name: k.name, y: k.yAxis })),
+      })),
       wdName: d.wdName, holName: d.holName, wdDate: d.wdDate, holDate: d.holDate,
     };
   }

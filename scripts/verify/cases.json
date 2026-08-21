@@ -133,5 +133,32 @@
       "_limit": 10
     },
     "expect": false
+  },
+  {
+    "name": "vacRatio 触发：1.1657 > 0.6",
+    "key": "vacRatio",
+    "m": {
+      "ratio": 1.1657,
+      "threshold": 0.6
+    },
+    "expect": true
+  },
+  {
+    "name": "vacRatio 正常：0.35 < 0.6（构造，尚无真实正常样本）",
+    "key": "vacRatio",
+    "m": {
+      "ratio": 0.35,
+      "threshold": 0.6
+    },
+    "expect": false
+  },
+  {
+    "name": "vacRatio 恰等阈值不触发（判据是 >）",
+    "key": "vacRatio",
+    "m": {
+      "ratio": 0.6,
+      "threshold": 0.6
+    },
+    "expect": false
   }
 ]

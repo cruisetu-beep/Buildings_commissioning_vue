@@ -564,6 +564,54 @@ export function parseSchedule(raw) {
 
        ⚠ resultMd 写的公式是 (E_H − E_L)/E_H，后端实际算的是
           (E_L − E_H)/E_H，三个窗口无一例外。按实现接入，已挂问题清单。 */
+    /* BH-S1（CR0046）：教育建筑假期 / 学期的空调逐时曲线对照。
+       判据 ratio = vacMean / termMean > 60% 触发（假期没降下来）。
+
+       ⚠ 代表日**不在 sWindow 里**：sWindow 的 dateFrom/dateTo 是
+          2025-01-01 ~ 2025-12-31 的**全年统计窗**（windowType「段」），
+          真正的代表日在 metrics.vacRep / termRep。照搬 HighLowGap 那套
+          （wdDate=dateFrom）会把图例标成「学期 01-01 / 假期 12-31」，两个都错。
+
+       ⚠ selectionReason 是「全年统计窗」，不含曲线名也没有 "/" 分隔，
+          无法像 BF-S1 那样切段取名。曲线名按规则写死。
+
+       ⚠ 曲线归属已核对：Σworkday×4 = 893.72 ≈ termMean 912.89，
+          Σholiday×4 = 1065.72 ≈ vacMean 1064.16。
+          即 workday ↔ 学期、holiday ↔ 假期。
+
+       ⚠⚠ **两条曲线画的是代表日，判据用的却是均值，两者对不上**：
+          学期侧倍率 4.086（差 2.1%）、假期侧 3.994。说明 termMean 多半是
+          「学期全部日期的日均」，而 hourlyProfiles.workday 只是其中一个
+          代表日。故图上另画两条均值水平线，文案明说判据用的是均值。
+          均值换算到逐时功率轴需 ÷96（六·B 的 4 倍 × 24 小时）：
+          912.89/96 = 9.51 kW、1064.16/96 = 11.09 kW，均落在曲线范围内。
+          **这个换算依赖 4 倍缺陷成立；后端若修了 4 倍，这里要同步改。** */
+    if (m.algo === "Vacation") {
+      const perHour = (v) => (Number.isFinite(Number(v)) ? Number(v) / 96 : NaN);
+      return {
+        ...base,
+        algo: m.algo,
+        wdDate: m.termRep || "",
+        holDate: m.vacRep || "",
+        wdName: "学期日",
+        holName: "假期日",
+        selectionReason: w0.selectionReason || "",
+        ratio: Number(m.ratio),
+        threshold: Number(m.threshold),
+        vacMean: Number(m.vacMean),
+        termMean: Number(m.termMean),
+        /* 判据用的两个均值，换算到逐时功率轴后作水平基准线 */
+        pairMarks: [
+          { y: perHour(m.termMean), name: `学期均值 ${perHour(m.termMean).toFixed(2)}`, color: "#2f7fff" },
+          { y: perHour(m.vacMean), name: `假期均值 ${perHour(m.vacMean).toFixed(2)}`, color: "#f59a52" },
+        ],
+        wdPeak: Math.max(...wd),
+        wdBase: Math.min(...wd),
+        holPeak: Math.max(...hol),
+        holBase: Math.min(...hol),
+      };
+    }
+
     if (m.algo === "HighLowGap") {
       const seg = String(w0.selectionReason || "")
         .split("/")
@@ -773,6 +821,23 @@ export function buildScheduleOption(d, yName = "空调用电 (kW)") {
       line(tag(d.wdName || "工作日", d.wdDate, d.wdWeek), d.workday, "#2f7fff"),
       line(tag(d.holName || "节假日", d.holDate, d.holWeek), d.holiday, "#f59a52"),
     ];
+    /* BH-S1 的判据用的是两个均值，不是图上这两条代表日曲线，故另画基准线。
+       其余 pair 规则不设 pairMarks，图形不变。 */
+    if (d.pairMarks?.length) {
+      series[0].markLine = {
+        symbol: "none",
+        silent: true,
+        label: { position: "end", fontSize: 11, formatter: (p) => p.name },
+        data: d.pairMarks
+          .filter((k) => Number.isFinite(k.y))
+          .map((k) => ({
+            yAxis: k.y,
+            name: k.name,
+            lineStyle: { color: k.color, type: "dashed", width: 1.5 },
+            label: { color: k.color },
+          })),
+      };
+    }
   } else {
     const marks = [];
     /* 通用形态（NdrRatio 等）：基准线由 parseSchedule 给全，条数不固定 */

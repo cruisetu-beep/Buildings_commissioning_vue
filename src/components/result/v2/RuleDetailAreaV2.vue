@@ -273,6 +273,22 @@ const vals = computed(() => {
         _m: m,
       };
     }
+    /* BH-S1：假期/学期对照。判据用的是两个均值，不是图上的代表日曲线。 */
+    if (d.algo === "Vacation") {
+      return {
+        wdDate: fmtDate(d.wdDate),
+        holDate: fmtDate(d.holDate),
+        wdName: d.wdName,
+        holName: d.holName,
+        ratio: pct(d.ratio),
+        ratioThreshold: pct(d.threshold),
+        vacMean: num(d.vacMean),
+        termMean: num(d.termMean),
+        wdPeak: fix1(d.wdPeak),
+        holPeak: fix1(d.holPeak),
+        _m: m,
+      };
+    }
     /* BF-S1：高/低负荷日对照。metrics 无 passed，判据在 stepPassed 里直接比。
        eH/eL 是逐时积分的 4 倍（六·B），但 gap 为比值、4 倍对消，故照常取用。 */
     if (d.algo === "HighLowGap") {
@@ -626,6 +642,10 @@ function stepPassed(key, m) {
        故按 resultMd 判定准则表的字面（EUI ≤ 校正限额 → 正常）直接比。
      ⚠ 方向未经触发样本验证——拿到触发窗口后必须回来复核。 */
   if (key === "eui") return Number(m._eui) > Number(m._limit);
+  /* BH-S1：ratio = 假期均值/学期均值 > 阈值 触发（假期没降下来）。
+     metrics 无 passed，直接比。⚠ 仅一个窗口且为触发，无正常样本，
+     方向未经反向验证——拿到正常窗口后回来复核。 */
+  if (key === "vacRatio") return Number(m.ratio) > Number(m.threshold);
   return null;
 }
 const steps = computed(() => {
